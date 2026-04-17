@@ -23,32 +23,47 @@ N.P.Nemo 是一个纯 SVG 渲染的卡牌游戏项目，所有视觉元素均通
 **阶段一：工程基建与架构搭建**
 
 - [x] 初始化 Git 仓库
-- [ ] 前端项目初始化（React + TypeScript + Vite）
-- [ ] 后端项目初始化（FastAPI）
-- [ ] 定义核心数据契约（GameState、Card、Enemy、Player）
-- [ ] SVG 渲染基础设施搭建
+- [x] 前端项目初始化（React + TypeScript + Vite）
+- [x] 后端项目初始化（FastAPI）
+- [x] 定义核心数据契约（GameState、Card、Enemy、Player）
+- [x] SVG 渲染基础设施搭建
 - [ ] 前后端通信联调
 
 ## 项目结构
 
 ```
 N.P.Nemo/
-├── frontend/          # 前端项目（待创建）
+├── frontend/                    # 前端项目
 │   ├── src/
-│   │   ├── components/   # React 组件
-│   │   ├── systems/      # 游戏系统
-│   │   ├── stores/       # Zustand 状态管理
-│   │   ├── services/     # API 服务层
-│   │   └── svg/          # SVG 渲染模块
+│   │   ├── components/          # React 组件
+│   │   ├── systems/             # 游戏系统
+│   │   ├── stores/              # Zustand 状态管理
+│   │   │   ├── gameStore.ts     # 游戏状态
+│   │   │   └── uiStore.ts       # UI状态
+│   │   ├── services/            # API 服务层
+│   │   │   └── api.ts           # 后端通信
+│   │   ├── svg/                 # SVG 渲染模块
+│   │   │   ├── SVGCanvas.tsx    # SVG 画布容器
+│   │   │   └── layers/          # 图层容器
+│   │   ├── types/               # TypeScript 类型定义
+│   │   │   └── game.ts          # 游戏数据契约
+│   │   └── utils/               # 工具函数
 │   └── ...
-├── backend/           # 后端项目（待创建）
-│   ├── routers/          # API 路由
-│   ├── services/         # 业务逻辑
-│   ├── models/           # 数据模型
-│   ├── schemas/          # Pydantic Schema
-│   └── core/             # 核心配置
-├── PLAN.md            # 项目规划文档
-└── README.md          # 项目说明
+├── backend/                     # 后端项目
+│   ├── routers/                 # API 路由
+│   │   └── game.py              # 游戏相关路由
+│   ├── services/                # 业务逻辑
+│   │   └── game_service.py      # 游戏服务
+│   ├── models/                  # 数据库模型
+│   │   └── game.py              # 游戏数据模型
+│   ├── schemas/                 # Pydantic Schema
+│   │   └── game.py              # 请求/响应模型
+│   ├── core/                    # 核心配置
+│   │   ├── config.py            # 应用配置
+│   │   └── database.py          # 数据库连接
+│   └── main.py                  # FastAPI 入口
+├── PLAN.md                      # 项目规划文档
+└── README.md                    # 项目说明
 ```
 
 ## 快速开始
@@ -61,7 +76,23 @@ N.P.Nemo/
 
 ### 安装与运行
 
-（待项目初始化后补充）
+#### 前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+#### 后端
+
+```bash
+cd backend
+python -m venv venv
+.\venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
 
 ## 开发指南
 
@@ -72,6 +103,7 @@ N.P.Nemo/
 | 版本 | 日期 | 内容 |
 |:---|:---|:---|
 | v0.1.0 | 2026-04-18 | 项目初始化，定义技术栈与四阶段规划 |
+| v0.2.0 | 2026-04-18 | 完成前后端项目架构搭建，定义核心数据契约 |
 
 ## 许可证
 
