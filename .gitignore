@@ -63,3 +63,8 @@ uploads/
 
 # Venv
 .venv/
+venv/
+
+# Generated files
+openapi.json
+*.generated.ts
