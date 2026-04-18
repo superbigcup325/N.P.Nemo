@@ -58,6 +58,8 @@ N.P.Nemo/
 │   │   └── game.py              # 游戏数据模型
 │   ├── schemas/                 # Pydantic Schema
 │   │   └── game.py              # 请求/响应模型
+│   ├── scripts/                 # 工具脚本
+│   │   └── generate_openapi.py  # OpenAPI 生成脚本
 │   ├── core/                    # 核心配置
 │   │   ├── config.py            # 应用配置
 │   │   └── database.py          # 数据库连接
@@ -94,6 +96,27 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+### API 文档
+
+后端启动后访问：
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+- OpenAPI JSON: http://localhost:8000/openapi.json
+
+### 生成 OpenAPI 文件
+
+```bash
+cd backend
+python scripts/generate_openapi.py -o openapi.json
+```
+
+### 生成前端类型（需要后端运行）
+
+```bash
+cd frontend
+npm run generate:types
+```
+
 ## 开发指南
 
 详细的项目规划与阶段性目标请参阅 [PLAN.md](./PLAN.md)。
@@ -104,6 +127,7 @@ uvicorn main:app --reload
 |:---|:---|:---|
 | v0.1.0 | 2026-04-18 | 项目初始化，定义技术栈与四阶段规划 |
 | v0.2.0 | 2026-04-18 | 完成前后端项目架构搭建，定义核心数据契约 |
+| v0.2.1 | 2026-04-18 | 添加 OpenAPI 生成脚本与前端类型生成工具 |
 
 ## 许可证
 
