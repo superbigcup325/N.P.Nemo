@@ -60,3 +60,6 @@ uploads/
 *.pem
 *.key
 *.cert
+
+# Venv
+.venv/
