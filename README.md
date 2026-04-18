@@ -27,7 +27,7 @@ N.P.Nemo 是一个纯 SVG 渲染的卡牌游戏项目，所有视觉元素均通
 - [x] 后端项目初始化（FastAPI）
 - [x] 定义核心数据契约（GameState、Card、Enemy、Player）
 - [x] SVG 渲染基础设施搭建
-- [ ] 前后端通信联调
+- [x] 前后端通信联调
 
 ## 项目结构
 
@@ -36,19 +36,20 @@ N.P.Nemo/
 ├── frontend/                    # 前端项目
 │   ├── src/
 │   │   ├── components/          # React 组件
+│   │   │   └── ErrorBoundary.tsx # 错误边界组件
 │   │   ├── systems/             # 游戏系统
 │   │   ├── stores/              # Zustand 状态管理
 │   │   │   ├── gameStore.ts     # 游戏状态
 │   │   │   └── uiStore.ts       # UI状态
 │   │   ├── services/            # API 服务层
-│   │   │   └── api.ts           # 后端通信
+│   │   │   └── api.ts           # 后端通信（含错误处理）
 │   │   ├── svg/                 # SVG 渲染模块
 │   │   │   ├── SVGCanvas.tsx    # SVG 画布容器
 │   │   │   └── layers/          # 图层容器
 │   │   ├── types/               # TypeScript 类型定义
 │   │   │   └── game.ts          # 游戏数据契约
 │   │   └── utils/               # 工具函数
-│   └── ...
+│   └── vite.config.ts           # Vite 配置（含代理）
 ├── backend/                     # 后端项目
 │   ├── routers/                 # API 路由
 │   │   └── game.py              # 游戏相关路由
@@ -62,7 +63,9 @@ N.P.Nemo/
 │   │   └── generate_openapi.py  # OpenAPI 生成脚本
 │   ├── core/                    # 核心配置
 │   │   ├── config.py            # 应用配置
-│   │   └── database.py          # 数据库连接
+│   │   ├── database.py          # 数据库连接
+│   │   ├── error_handler.py     # 全局错误处理中间件
+│   │   └── state_machine.py     # 游戏状态机框架
 │   └── main.py                  # FastAPI 入口
 ├── PLAN.md                      # 项目规划文档
 └── README.md                    # 项目说明
@@ -128,6 +131,7 @@ npm run generate:types
 | v0.1.0 | 2026-04-18 | 项目初始化，定义技术栈与四阶段规划 |
 | v0.2.0 | 2026-04-18 | 完成前后端项目架构搭建，定义核心数据契约 |
 | v0.2.1 | 2026-04-18 | 添加 OpenAPI 生成脚本与前端类型生成工具 |
+| v0.2.2 | 2026-04-18 | 完善架构：状态机、错误处理、开发代理、错误边界组件 |
 
 ## 许可证
 
