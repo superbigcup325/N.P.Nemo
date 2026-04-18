@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
+from .core.error_handler import setup_error_handlers
 from .routers import game
 
 app = FastAPI(
@@ -9,6 +10,8 @@ app = FastAPI(
     description="Backend API for N.P.Nemo card game",
     version="0.1.0"
 )
+
+setup_error_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,
