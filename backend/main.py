@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .core.config import settings
-from .core.error_handler import setup_error_handlers
-from .routers import game
+from core.config import settings
+from core.error_handler import setup_error_handlers
+from routers import game
 
 app = FastAPI(
     title="N.P.Nemo API",
