@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_session
@@ -23,7 +23,10 @@ async def get_game_state(
     session: AsyncSession = Depends(get_session)
 ):
     service = GameService(session)
-    return await service.get_game_state(game_id)
+    state = await service.get_game_state(game_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Game not found")
+    return state
 
 
 @router.post("/{game_id}/action", response_model=GameState)
@@ -33,7 +36,15 @@ async def perform_action(
     session: AsyncSession = Depends(get_session)
 ):
     service = GameService(session)
-    return await service.perform_action(game_id, action)
+    
+    state = await service.get_game_state(game_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    result = await service.perform_action(game_id, action)
+    if not result:
+        raise HTTPException(status_code=400, detail="Invalid action for current game state")
+    return result
 
 
 @router.post("/{game_id}/end-turn", response_model=GameState)
@@ -42,4 +53,12 @@ async def end_turn(
     session: AsyncSession = Depends(get_session)
 ):
     service = GameService(session)
-    return await service.end_turn(game_id)
+    
+    state = await service.get_game_state(game_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Game not found")
+    
+    result = await service.end_turn(game_id)
+    if not result:
+        raise HTTPException(status_code=400, detail="Cannot end turn outside battle phase")
+    return result
