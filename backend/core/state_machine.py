@@ -9,6 +9,8 @@ class GamePhase(str, Enum):
     SHOP = "shop"
     REST = "rest"
     EVENT = "event"
+    VICTORY = "victory"
+    GAME_OVER = "game_over"
 
 
 class BattleTurn(str, Enum):
@@ -23,7 +25,7 @@ class GameStateMachine:
         
         self._valid_transitions: dict[GamePhase, list[GamePhase]] = {
             GamePhase.MAP: [GamePhase.BATTLE, GamePhase.REST, GamePhase.SHOP, GamePhase.EVENT],
-            GamePhase.BATTLE: [GamePhase.REWARD, GamePhase.MAP],
+            GamePhase.BATTLE: [GamePhase.REWARD, GamePhase.VICTORY, GamePhase.GAME_OVER, GamePhase.MAP],
             GamePhase.REWARD: [GamePhase.MAP],
             GamePhase.SHOP: [GamePhase.MAP],
             GamePhase.REST: [GamePhase.MAP],

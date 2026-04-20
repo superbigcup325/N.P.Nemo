@@ -30,6 +30,8 @@ class GamePhase(str, Enum):
     SHOP = "shop"
     REST = "rest"
     EVENT = "event"
+    VICTORY = "victory"
+    GAME_OVER = "game_over"
 
 
 class RoomType(str, Enum):

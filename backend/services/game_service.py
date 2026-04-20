@@ -106,6 +106,8 @@ class GameService:
         elif action.type == "end_turn":
             await self.end_turn(game_id)
         
+        self._check_battle_result(state)
+        
         self._games[game_id] = state
         return state
     
@@ -138,15 +140,31 @@ class GameService:
                 state.player.hp = max(0, state.player.hp - damage)
                 state.player.block = max(0, state.player.block - enemy.intent.value)
         
-        alive_enemies = [e for e in state.enemies if e.hp > 0]
-        
-        if state.enemies and not alive_enemies:
-            state.phase = GamePhase.REWARD
-            state.enemies = []
+        self._check_battle_result(state)
         
         self._games[game_id] = state
         return state
     
+    def _check_battle_result(self, state: GameState) -> None:
+        if state.phase != GamePhase.BATTLE:
+            return
+        
+        if state.player.hp <= 0:
+            state.phase = GamePhase.GAME_OVER
+            state.enemies = []
+            return
+        
+        alive_enemies = [e for e in state.enemies if e.hp > 0]
+        
+        if state.enemies and not alive_enemies:
+            if state.current_floor >= len(state.map.floors) - 1 and any(
+                r.type == RoomType.BOSS for r in state.map.floors[state.current_floor].rooms
+            ):
+                state.phase = GamePhase.VICTORY
+            else:
+                state.phase = GamePhase.REWARD
+            state.enemies = []
+
     def _create_starter_deck(self) -> list[Card]:
         return [
             Card(id=f"strike_{i}", name="Strike", description="Deal 6 damage.",
