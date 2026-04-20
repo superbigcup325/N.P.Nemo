@@ -67,7 +67,7 @@ export interface Deck {
   exhaustPile: Card[]
 }
 
-export type GamePhase = 'map' | 'battle' | 'reward' | 'shop' | 'rest' | 'event'
+export type GamePhase = 'map' | 'battle' | 'reward' | 'shop' | 'rest' | 'event' | 'victory' | 'game_over'
 
 export interface GameState {
   gameId: string

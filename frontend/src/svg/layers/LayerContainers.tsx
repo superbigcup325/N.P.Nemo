@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 
 interface LayerProps {
-  children: ReactNode
+  children?: ReactNode
 }
 
 export function BackgroundLayer({ children }: LayerProps) {
