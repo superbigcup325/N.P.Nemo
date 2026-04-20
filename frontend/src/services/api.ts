@@ -13,26 +13,55 @@ class ApiError extends Error {
   }
 }
 
+function toCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+}
+
+function transformKeys<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj
+  
+  if (Array.isArray(obj)) {
+    return obj.map(transformKeys) as T
+  }
+  
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    const camelKey = toCamelCase(key)
+    result[camelKey] = transformKeys(value)
+  }
+  return result as T
+}
+
 class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers
-      },
-      ...options
-    })
+    let response: Response
     
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Unknown error' }))
-      throw new ApiError(
-        response.status, 
-        error.detail || `HTTP ${response.status}`,
-        error
-      )
+    try {
+      response = await fetch(`${API_BASE}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers
+        },
+        ...options
+      })
+    } catch (networkErr) {
+      throw new ApiError(0, `Network error: ${networkErr instanceof Error ? networkErr.message : 'Failed to connect'}`)
     }
     
-    return response.json()
+    if (!response.ok) {
+      let detail = 'Unknown error'
+      try {
+        const errBody = await response.json()
+        detail = errBody?.detail || JSON.stringify(errBody) || `HTTP ${response.status}`
+      } catch {
+        detail = await response.text().catch(() => `HTTP ${response.status}`)
+      }
+      
+      throw new ApiError(response.status, detail, detail)
+    }
+    
+    const data = await response.json()
+    return transformKeys<T>(data)
   }
   
   async startGame(request: GameStartRequest): Promise<GameStartResponse> {

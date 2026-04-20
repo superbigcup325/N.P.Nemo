@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { SVGCanvas, BackgroundLayer, GameObjectsLayer, FXLayer, UILayer } from './svg'
 import { useGameStore } from './stores/gameStore'
 import { useUIStore } from './stores/uiStore'
@@ -96,12 +96,11 @@ function GameContent() {
           {gameState?.phase === 'map' && gameState.map && (
             <>
               <text x={40} y={40} fill="#aaa" fontSize={16} fontWeight="bold">
-                Floor {gameState.current_floor + 1}
+                Floor {gameState.currentFloor + 1}
               </text>
               
-              {gameState.map.floors[gameState.current_floor]?.rooms.map((room, idx) => (
+              {gameState.map.floors[gameState.currentFloor]?.rooms.map((room, idx) => (
                 <g key={room.id} 
-                   onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
                    style={{ cursor: 'pointer' }}
                 >
                   <rect
@@ -113,6 +112,7 @@ function GameContent() {
                     fill={room.completed ? '#2a4a3a' : '#3a3a5a'}
                     stroke={room.completed ? '#4a8a6a' : '#6a6a8a'}
                     strokeWidth={2}
+                    onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
                   />
                   <text
                     x={110 + idx * 120}
@@ -121,6 +121,7 @@ function GameContent() {
                     fill="#ddd"
                     fontSize={12}
                     fontWeight="bold"
+                    onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
                   >
                     {room.type.toUpperCase()}
                   </text>
@@ -130,6 +131,7 @@ function GameContent() {
                     textAnchor="middle"
                     fill={room.completed ? '#6a9a7a' : '#888'}
                     fontSize={10}
+                    onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
                   >
                     {room.completed ? 'DONE' : 'READY'}
                   </text>
@@ -174,7 +176,7 @@ function GameContent() {
                     fontSize={18}
                     fontWeight="bold"
                   >
-                    {enemy.hp} / {enemy.max_hp}
+                    {enemy.hp} / {enemy.maxHp}
                   </text>
                   <rect
                     x={570}
@@ -187,7 +189,7 @@ function GameContent() {
                   <rect
                     x={570}
                     y={155}
-                    width={(enemy.hp / enemy.max_hp) * 160}
+                    width={(enemy.hp / enemy.maxHp) * 160}
                     height={10}
                     rx={5}
                     fill="#e74c3c"
@@ -257,7 +259,6 @@ function GameContent() {
               
               {gameState.deck.hand.map((card, idx) => (
                 <g key={card.id}
-                   onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
                    style={{ cursor: 'pointer' }}
                 >
                   <rect
@@ -269,6 +270,7 @@ function GameContent() {
                     fill={card.type === 'attack' ? '#3d1a1a' : card.type === 'skill' ? '#1a2a3d' : '#2a2a1a'}
                     stroke={card.type === 'attack' ? '#c0392b' : card.type === 'skill' ? '#2980b9' : '#f39c12'}
                     strokeWidth={2}
+                    onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
                   />
                   <text
                     x={102 + idx * 95}
@@ -277,6 +279,7 @@ function GameContent() {
                     fill="#fff"
                     fontSize={11}
                     fontWeight="bold"
+                    onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
                   >
                     {card.name}
                   </text>
@@ -287,6 +290,7 @@ function GameContent() {
                     fill="#f39c12"
                     fontSize={20}
                     fontWeight="bold"
+                    onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
                   >
                     {card.cost}
                   </text>
@@ -297,6 +301,7 @@ function GameContent() {
                       textAnchor="middle"
                       fill="#aaa"
                       fontSize={10}
+                      onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
                     >
                       {card.damage ? `DMG: ${card.damage}` : `BLK: ${card.block}`}
                     </text>
@@ -346,15 +351,18 @@ function GameContent() {
         <UILayer>
           {error && (
             <g>
-              <rect x={200} y={240} width={400} height={60} rx={8} fill="#3a1a1a" stroke="#e74c3c" strokeWidth={2} />
-              <text x={400} y={275} textAnchor="middle" fill="#e74c3c" fontSize={14}>{error}</text>
+              <rect x={150} y={230} width={500} height={80} rx={8} fill="#3a1a1a" stroke="#e74c3c" strokeWidth={2} />
+              <text x={400} y={260} textAnchor="middle" fill="#e74c3c" fontSize={14} fontWeight="bold">Error</text>
+              <text x={400} y={285} textAnchor="middle" fill="#f5a0a0" fontSize={12}>{error}</text>
             </g>
           )}
           
           {!gameState && !isLoading && (
-            <g onClick={handleStartGame} style={{ cursor: 'pointer' }}>
-              <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2} />
-              <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold">Start Game</text>
+            <g style={{ cursor: 'pointer' }}>
+              <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2} 
+                    onClick={handleStartGame} />
+              <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold"
+                    onClick={handleStartGame}>Start Game</text>
             </g>
           )}
           
@@ -363,16 +371,42 @@ function GameContent() {
           )}
           
           {gameState && (
-            <g onClick={handleReset} style={{ cursor: 'pointer' }}>
-              <rect x={700} y={555} width={80} height={30} rx={4} fill="#3a2a2a" stroke="#666" strokeWidth={1} />
-              <text x={740} y={575} textAnchor="middle" fill="#888" fontSize={11}>Reset</text>
+            <g style={{ cursor: 'pointer' }}>
+              <rect x={20} y={555} width={60} height={30} rx={4} fill="#3a2a2a" stroke="#666" strokeWidth={1} 
+                    onClick={handleReset} />
+              <text x={50} y={575} textAnchor="middle" fill="#888" fontSize={11}
+                    onClick={handleReset}>Reset</text>
             </g>
           )}
           
           {gameState?.phase === 'battle' && !isLoading && (
-            <g onClick={handleEndTurn} style={{ cursor: 'pointer' }}>
-              <rect x={600} y={550} width={140} height={36} rx={18} fill="#2a3a2a" stroke="#27ae60" strokeWidth={2} />
-              <text x={670} y={574} textAnchor="middle" fill="#27ae60" fontSize={14} fontWeight="bold">End Turn</text>
+            <g style={{ cursor: 'pointer' }}>
+              <rect x={600} y={550} width={140} height={36} rx={18} fill="#2a3a2a" stroke="#27ae60" strokeWidth={2} 
+                    onClick={handleEndTurn} />
+              <text x={670} y={574} textAnchor="middle" fill="#27ae60" fontSize={14} fontWeight="bold"
+                    onClick={handleEndTurn}>End Turn</text>
+            </g>
+          )}
+          
+          {gameState?.phase === 'victory' && (
+            <g>
+              <rect x={200} y={200} width={400} height={200} rx={16} fill="#1a3a1a" stroke="#27ae60" strokeWidth={4} />
+              <text x={400} y={270} textAnchor="middle" fill="#27ae60" fontSize={32} fontWeight="bold">VICTORY</text>
+              <text x={400} y={320} textAnchor="middle" fill="#aaa" fontSize={16}>You have conquered all floors!</text>
+              <text x={400} y={360} textAnchor="middle" fill="#888" fontSize={12}>
+                Turns: {gameState.turn}
+              </text>
+            </g>
+          )}
+          
+          {gameState?.phase === 'game_over' && (
+            <g>
+              <rect x={200} y={200} width={400} height={200} rx={16} fill="#3a1a1a" stroke="#c0392b" strokeWidth={4} />
+              <text x={400} y={270} textAnchor="middle" fill="#c0392b" fontSize={32} fontWeight="bold">DEFEAT</text>
+              <text x={400} y={320} textAnchor="middle" fill="#aaa" fontSize={16}>You have fallen...</text>
+              <text x={400} y={355} textAnchor="middle" fill="#888" fontSize={12}>
+                Floor: {gameState.currentFloor + 1} | Turn: {gameState.turn}
+              </text>
             </g>
           )}
           
