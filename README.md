@@ -20,7 +20,7 @@ N.P.Nemo 是一个纯 SVG 渲染的卡牌游戏项目，所有视觉元素均通
 
 ## 当前阶段
 
-**阶段一：工程基建与架构搭建**
+**阶段一：工程基建与架构搭建（完善中）**
 
 - [x] 初始化 Git 仓库
 - [x] 前端项目初始化（React + TypeScript + Vite）
@@ -28,6 +28,8 @@ N.P.Nemo 是一个纯 SVG 渲染的卡牌游戏项目，所有视觉元素均通
 - [x] 定义核心数据契约（GameState、Card、Enemy、Player）
 - [x] SVG 渲染基础设施搭建
 - [x] 前后端通信联调
+- [x] SQLite 数据库集成与 CRUD 验证
+- [x] 组件化拆分（App.tsx → 10+ 独立组件）
 
 ## 项目结构
 
@@ -36,13 +38,25 @@ N.P.Nemo/
 ├── frontend/                    # 前端项目
 │   ├── src/
 │   │   ├── components/          # React 组件
-│   │   │   └── ErrorBoundary.tsx # 错误边界组件
+│   │   │   ├── ErrorBoundary.tsx # 错误边界组件
+│   │   │   ├── GameLayers.tsx    # 图层容器（Background/GameObjects/FX/UI）
+│   │   │   ├── views/            # 视图组件（按游戏相位）
+│   │   │   │   ├── MapView.tsx       # 地图界面
+│   │   │   │   ├── BattleView.tsx    # 战斗界面
+│   │   │   │   ├── RewardView.tsx    # 奖励界面
+│   │   │   │   ├── VictoryOverlay.tsx # 胜利弹窗
+│   │   │   │   └── DefeatOverlay.tsx # 失败弹窗
+│   │   │   └── battle/           # 战斗子组件
+│   │   │       ├── CardComponent.tsx  # 单张卡牌
+│   │   │       ├── EnemyPanel.tsx     # 敌人面板
+│   │   │       ├── PlayerPanel.tsx    # 玩家面板
+│   │   │       └── HandArea.tsx       # 手牌区域
 │   │   ├── systems/             # 游戏系统
 │   │   ├── stores/              # Zustand 状态管理
 │   │   │   ├── gameStore.ts     # 游戏状态
 │   │   │   └── uiStore.ts       # UI状态
 │   │   ├── services/            # API 服务层
-│   │   │   └── api.ts           # 后端通信（含错误处理）
+│   │   │   └── api.ts           # 后端通信（含错误处理+camelCase转换）
 │   │   ├── svg/                 # SVG 渲染模块
 │   │   │   ├── SVGCanvas.tsx    # SVG 画布容器
 │   │   │   └── layers/          # 图层容器
@@ -54,7 +68,7 @@ N.P.Nemo/
 │   ├── routers/                 # API 路由
 │   │   └── game.py              # 游戏相关路由
 │   ├── services/                # 业务逻辑
-│   │   └── game_service.py      # 游戏服务
+│   │   └── game_service.py      # 游戏服务（SQLite CRUD）
 │   ├── models/                  # 数据库模型
 │   │   └── game.py              # 游戏数据模型
 │   ├── schemas/                 # Pydantic Schema
@@ -132,7 +146,9 @@ npm run generate:types
 | v0.2.0 | 2026-04-18 | 完成前后端项目架构搭建，定义核心数据契约 |
 | v0.2.1 | 2026-04-18 | 添加 OpenAPI 生成脚本与前端类型生成工具 |
 | v0.2.2 | 2026-04-18 | 完善架构：状态机、错误处理、开发代理、错误边界组件 |
-| v0.3.0 | 2026-04-18 | 阶段一完成：完整游戏循环（地图→战斗→奖励），前后端联调通过 |
+| v0.3.0 | 2026-04-18 | 阶段一核心完成：完整游戏循环（地图→战斗→奖励），前后端联调通过 |
+| v0.3.1 | 2026-04-19 | 修复 SVG 交互、胜负判定、API 错误处理；添加 Victory/Defeat 界面 |
+| v0.4.0 | 2026-04-19 | 阶段一完善：SQLite 数据库集成、组件化拆分（10+独立组件） |
 
 ## 许可证
 
