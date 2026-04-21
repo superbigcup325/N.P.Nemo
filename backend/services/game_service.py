@@ -1,7 +1,9 @@
+import json
 import uuid
 import random
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from schemas.game import (
     GameStartRequest, GameStartResponse, GameState, GameAction,
@@ -9,10 +11,10 @@ from schemas.game import (
     Deck, Card, CardType, CardRarity, GameMap, MapFloor, MapRoom, RoomType
 )
 from core.state_machine import GameStateMachine
+from models.game import GameModel
 
 
 class GameService:
-    _games: dict[str, GameState] = {}
     
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -49,15 +51,36 @@ class GameService:
             rng_seed=seed
         )
         
-        self._games[game_id] = game_state
+        game_record = GameModel(id=game_id, state=game_state.model_dump_json())
+        self.session.add(game_record)
+        await self.session.commit()
+        await self.session.refresh(game_record)
         
         return GameStartResponse(game_id=game_id, game_state=game_state)
     
     async def get_game_state(self, game_id: str) -> Optional[GameState]:
-        return self._games.get(game_id)
+        result = await self.session.execute(
+            select(GameModel).where(GameModel.id == game_id)
+        )
+        game_record = result.scalar_one_or_none()
+        
+        if not game_record:
+            return None
+        
+        return GameState.model_validate_json(game_record.state)
+    
+    async def _save_game_state(self, state: GameState) -> None:
+        result = await self.session.execute(
+            select(GameModel).where(GameModel.id == state.game_id)
+        )
+        game_record = result.scalar_one_or_none()
+        
+        if game_record:
+            game_record.state = state.model_dump_json()
+            await self.session.commit()
     
     async def perform_action(self, game_id: str, action: GameAction) -> Optional[GameState]:
-        state = self._games.get(game_id)
+        state = await self.get_game_state(game_id)
         if not state:
             return None
         
@@ -105,14 +128,15 @@ class GameService:
         
         elif action.type == "end_turn":
             await self.end_turn(game_id)
+            return await self.get_game_state(game_id)
         
         self._check_battle_result(state)
         
-        self._games[game_id] = state
+        await self._save_game_state(state)
         return state
     
     async def end_turn(self, game_id: str) -> Optional[GameState]:
-        state = self._games.get(game_id)
+        state = await self.get_game_state(game_id)
         if not state:
             return None
         
@@ -142,7 +166,7 @@ class GameService:
         
         self._check_battle_result(state)
         
-        self._games[game_id] = state
+        await self._save_game_state(state)
         return state
     
     def _check_battle_result(self, state: GameState) -> None:

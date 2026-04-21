@@ -1,14 +1,25 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
+from core.database import init_db
 from core.error_handler import setup_error_handlers
 from routers import game
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_db()
+    yield
+
 
 app = FastAPI(
     title="N.P.Nemo API",
     description="Backend API for N.P.Nemo card game",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan
 )
 
 setup_error_handlers(app)
