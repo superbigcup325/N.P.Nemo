@@ -1,5 +1,14 @@
 import { useCallback } from 'react'
-import { SVGCanvas, BackgroundLayer, GameObjectsLayer, FXLayer, UILayer } from './svg'
+import { SVGCanvas } from './svg'
+import {
+  MenuBackground,
+  GameLayers,
+  MapView,
+  BattleView,
+  RewardView,
+  VictoryOverlay,
+  DefeatOverlay
+} from './components'
 import { useGameStore } from './stores/gameStore'
 import { useUIStore } from './stores/uiStore'
 import { api } from './services/api'
@@ -73,347 +82,63 @@ function GameContent() {
     setPhase('menu')
   }, [resetGame, setPhase])
 
+  const handlePlayCard = useCallback((cardIndex: number) => {
+    handleAction({ type: 'play_card', payload: { card_index: cardIndex, target_index: 0 } })
+  }, [handleAction])
+
+  const handleRoomSelect = useCallback((roomIndex: number) => {
+    handleAction({ type: 'select_map_room', payload: { room_index: roomIndex } })
+  }, [handleAction])
+
   return (
     <div className="app-container">
       <SVGCanvas width={800} height={600}>
-        <BackgroundLayer>
-          <rect x={0} y={0} width={800} height={600} fill="#1a1a2e" />
-          
-          {!gameState && (
-            <text x={400} y={280} textAnchor="middle" fill="#4a4a6a" fontSize={32} fontWeight="bold">
-              N.P.Nemo
-            </text>
-          )}
-          
-          {!gameState && (
-            <text x={400} y={320} textAnchor="middle" fill="#888" fontSize={14}>
-              SVG Card Roguelike
-            </text>
-          )}
-        </BackgroundLayer>
+        <MenuBackground />
         
-        <GameObjectsLayer>
+        <GameLayers gameState={gameState} isLoading={isLoading} error={error}>
           {gameState?.phase === 'map' && gameState.map && (
-            <>
-              <text x={40} y={40} fill="#aaa" fontSize={16} fontWeight="bold">
-                Floor {gameState.currentFloor + 1}
-              </text>
-              
-              {gameState.map.floors[gameState.currentFloor]?.rooms.map((room, idx) => (
-                <g key={room.id} 
-                   style={{ cursor: 'pointer' }}
-                >
-                  <rect
-                    x={60 + idx * 120}
-                    y={100}
-                    width={100}
-                    height={80}
-                    rx={8}
-                    fill={room.completed ? '#2a4a3a' : '#3a3a5a'}
-                    stroke={room.completed ? '#4a8a6a' : '#6a6a8a'}
-                    strokeWidth={2}
-                    onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
-                  />
-                  <text
-                    x={110 + idx * 120}
-                    y={135}
-                    textAnchor="middle"
-                    fill="#ddd"
-                    fontSize={12}
-                    fontWeight="bold"
-                    onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
-                  >
-                    {room.type.toUpperCase()}
-                  </text>
-                  <text
-                    x={110 + idx * 120}
-                    y={155}
-                    textAnchor="middle"
-                    fill={room.completed ? '#6a9a7a' : '#888'}
-                    fontSize={10}
-                    onClick={() => handleAction({ type: 'select_map_room', payload: { room_index: idx } })}
-                  >
-                    {room.completed ? 'DONE' : 'READY'}
-                  </text>
-                </g>
-              ))}
-            </>
+            <MapView
+              currentFloor={gameState.currentFloor}
+              rooms={gameState.map.floors[gameState.currentFloor]?.rooms || []}
+              onRoomSelect={handleRoomSelect}
+            />
           )}
 
           {gameState?.phase === 'battle' && (
-            <>
-              <text x={40} y={40} fill="#e74c3c" fontSize={16} fontWeight="bold">
-                BATTLE - Turn {gameState.turn + 1}
-              </text>
-
-              {gameState.enemies.map((enemy) => (
-                <g key={enemy.id}>
-                  <rect
-                    x={550}
-                    y={80}
-                    width={200}
-                    height={120}
-                    rx={10}
-                    fill="#2a1a1a"
-                    stroke="#e74c3c"
-                    strokeWidth={2}
-                  />
-                  <text
-                    x={650}
-                    y={115}
-                    textAnchor="middle"
-                    fill="#fff"
-                    fontSize={14}
-                    fontWeight="bold"
-                  >
-                    {enemy.name}
-                  </text>
-                  <text
-                    x={650}
-                    y={140}
-                    textAnchor="middle"
-                    fill="#e74c3c"
-                    fontSize={18}
-                    fontWeight="bold"
-                  >
-                    {enemy.hp} / {enemy.maxHp}
-                  </text>
-                  <rect
-                    x={570}
-                    y={155}
-                    width={160}
-                    height={10}
-                    rx={5}
-                    fill="#333"
-                  />
-                  <rect
-                    x={570}
-                    y={155}
-                    width={(enemy.hp / enemy.maxHp) * 160}
-                    height={10}
-                    rx={5}
-                    fill="#e74c3c"
-                  />
-                  
-                  {enemy.block > 0 && (
-                    <text x={650} y={185} textAnchor="middle" fill="#3498db" fontSize={12}>
-                      Block: {enemy.block}
-                    </text>
-                  )}
-                </g>
-              ))}
-
-              <g>
-                <rect
-                  x={50}
-                  y={350}
-                  width={200}
-                  height={120}
-                  rx={10}
-                  fill="#1a2a1a"
-                  stroke="#27ae60"
-                  strokeWidth={2}
-                />
-                <text
-                  x={150}
-                  y={380}
-                  textAnchor="middle"
-                  fill="#fff"
-                  fontSize={14}
-                  fontWeight="bold"
-                >
-                  Player
-                </text>
-                <text
-                  x={150}
-                  y={405}
-                  textAnchor="middle"
-                  fill="#27ae60"
-                  fontSize={18}
-                  fontWeight="bold"
-                >
-                  {gameState.player.hp} / {gameState.player.maxHp}
-                </text>
-                
-                <rect
-                  x={70}
-                  y={420}
-                  width={160}
-                  height={10}
-                  rx={5}
-                  fill="#333"
-                />
-                <rect
-                  x={70}
-                  y={420}
-                  width={(gameState.player.hp / gameState.player.maxHp) * 160}
-                  height={10}
-                  rx={5}
-                  fill="#27ae60"
-                />
-                
-                <text x={90} y={455} fill="#f39c12" fontSize={12}>
-                  Energy: {gameState.player.energy}/{gameState.player.maxEnergy}
-                </text>
-              </g>
-              
-              {gameState.deck.hand.map((card, idx) => (
-                <g key={card.id}
-                   style={{ cursor: 'pointer' }}
-                >
-                  <rect
-                    x={60 + idx * 95}
-                    y={480}
-                    width={85}
-                    height={110}
-                    rx={6}
-                    fill={card.type === 'attack' ? '#3d1a1a' : card.type === 'skill' ? '#1a2a3d' : '#2a2a1a'}
-                    stroke={card.type === 'attack' ? '#c0392b' : card.type === 'skill' ? '#2980b9' : '#f39c12'}
-                    strokeWidth={2}
-                    onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
-                  />
-                  <text
-                    x={102 + idx * 95}
-                    y={520}
-                    textAnchor="middle"
-                    fill="#fff"
-                    fontSize={11}
-                    fontWeight="bold"
-                    onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
-                  >
-                    {card.name}
-                  </text>
-                  <text
-                    x={102 + idx * 95}
-                    y={545}
-                    textAnchor="middle"
-                    fill="#f39c12"
-                    fontSize={20}
-                    fontWeight="bold"
-                    onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
-                  >
-                    {card.cost}
-                  </text>
-                  {(card.damage || card.block) && (
-                    <text
-                      x={102 + idx * 95}
-                      y={575}
-                      textAnchor="middle"
-                      fill="#aaa"
-                      fontSize={10}
-                      onClick={() => handleAction({ type: 'play_card', payload: { card_index: idx, target_index: 0 } })}
-                    >
-                      {card.damage ? `DMG: ${card.damage}` : `BLK: ${card.block}`}
-                    </text>
-                  )}
-                </g>
-              ))}
-            </>
+            <BattleView
+              gameState={gameState}
+              onPlayCard={handlePlayCard}
+            />
           )}
 
-          {gameState?.phase === 'reward' && (
-            <g>
-              <rect
-                x={250}
-                y={200}
-                width={300}
-                height={200}
-                rx={15}
-                fill="#2a2a1a"
-                stroke="#f39c12"
-                strokeWidth={3}
-              />
-              <text
-                x={400}
-                y={260}
-                textAnchor="middle"
-                fill="#f39c12"
-                fontSize={24}
-                fontWeight="bold"
-              >
-                Victory!
-              </text>
-              <text
-                x={400}
-                y={300}
-                textAnchor="middle"
-                fill="#888"
-                fontSize={14}
-              >
-                Choose a reward (coming soon)
-              </text>
-            </g>
-          )}
-        </GameObjectsLayer>
+          {gameState?.phase === 'reward' && <RewardView />}
+        </GameLayers>
         
-        <FXLayer></FXLayer>
-        
-        <UILayer>
-          {error && (
-            <g>
-              <rect x={150} y={230} width={500} height={80} rx={8} fill="#3a1a1a" stroke="#e74c3c" strokeWidth={2} />
-              <text x={400} y={260} textAnchor="middle" fill="#e74c3c" fontSize={14} fontWeight="bold">Error</text>
-              <text x={400} y={285} textAnchor="middle" fill="#f5a0a0" fontSize={12}>{error}</text>
-            </g>
-          )}
+        {!gameState && !isLoading && (
+          <g style={{ cursor: 'pointer' }}>
+            <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2}
+                  onClick={handleStartGame} />
+            <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold"
+                  onClick={handleStartGame}>Start Game</text>
+          </g>
+        )}
           
-          {!gameState && !isLoading && (
-            <g style={{ cursor: 'pointer' }}>
-              <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2} 
-                    onClick={handleStartGame} />
-              <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold"
-                    onClick={handleStartGame}>Start Game</text>
-            </g>
-          )}
+        {gameState?.phase === 'battle' && !isLoading && (
+          <g style={{ cursor: 'pointer' }}>
+            <rect x={600} y={550} width={140} height={36} rx={18} fill="#2a3a2a" stroke="#27ae60" strokeWidth={2}
+                  onClick={handleEndTurn} />
+            <text x={670} y={574} textAnchor="middle" fill="#27ae60" fontSize={14} fontWeight="bold"
+                  onClick={handleEndTurn}>End Turn</text>
+          </g>
+        )}
           
-          {isLoading && (
-            <text x={400} y={382} textAnchor="middle" fill="#888" fontSize={14}>Loading...</text>
-          )}
+        {gameState?.phase === 'victory' && (
+          <VictoryOverlay turns={gameState.turn} />
+        )}
           
-          {gameState && (
-            <g style={{ cursor: 'pointer' }}>
-              <rect x={20} y={555} width={60} height={30} rx={4} fill="#3a2a2a" stroke="#666" strokeWidth={1} 
-                    onClick={handleReset} />
-              <text x={50} y={575} textAnchor="middle" fill="#888" fontSize={11}
-                    onClick={handleReset}>Reset</text>
-            </g>
-          )}
-          
-          {gameState?.phase === 'battle' && !isLoading && (
-            <g style={{ cursor: 'pointer' }}>
-              <rect x={600} y={550} width={140} height={36} rx={18} fill="#2a3a2a" stroke="#27ae60" strokeWidth={2} 
-                    onClick={handleEndTurn} />
-              <text x={670} y={574} textAnchor="middle" fill="#27ae60" fontSize={14} fontWeight="bold"
-                    onClick={handleEndTurn}>End Turn</text>
-            </g>
-          )}
-          
-          {gameState?.phase === 'victory' && (
-            <g>
-              <rect x={200} y={200} width={400} height={200} rx={16} fill="#1a3a1a" stroke="#27ae60" strokeWidth={4} />
-              <text x={400} y={270} textAnchor="middle" fill="#27ae60" fontSize={32} fontWeight="bold">VICTORY</text>
-              <text x={400} y={320} textAnchor="middle" fill="#aaa" fontSize={16}>You have conquered all floors!</text>
-              <text x={400} y={360} textAnchor="middle" fill="#888" fontSize={12}>
-                Turns: {gameState.turn}
-              </text>
-            </g>
-          )}
-          
-          {gameState?.phase === 'game_over' && (
-            <g>
-              <rect x={200} y={200} width={400} height={200} rx={16} fill="#3a1a1a" stroke="#c0392b" strokeWidth={4} />
-              <text x={400} y={270} textAnchor="middle" fill="#c0392b" fontSize={32} fontWeight="bold">DEFEAT</text>
-              <text x={400} y={320} textAnchor="middle" fill="#aaa" fontSize={16}>You have fallen...</text>
-              <text x={400} y={355} textAnchor="middle" fill="#888" fontSize={12}>
-                Floor: {gameState.currentFloor + 1} | Turn: {gameState.turn}
-              </text>
-            </g>
-          )}
-          
-          <text x={20} y={585} fill="#555" fontSize={11}>
-            Phase: {gameState?.phase || 'menu'} | Turn: {gameState?.turn ?? 0}
-          </text>
-        </UILayer>
+        {gameState?.phase === 'game_over' && (
+          <DefeatOverlay currentFloor={gameState.currentFloor} turns={gameState.turn} />
+        )}
       </SVGCanvas>
     </div>
   )
