@@ -319,6 +319,7 @@ class GameService:
         gold_reward = rng.randint(15, 35)
         
         state.player.gold += gold_reward
+        state.pending_rewards = reward_cards
         
         reward_offer = {
             "cards": [{"card": card.model_dump(), "selected": False} for card in reward_cards],
@@ -334,17 +335,14 @@ class GameService:
         if not state or state.phase != GamePhase.REWARD:
             return None
 
-        if not skip and card_index is not None:
-            rng = random.Random(state.rng_seed + f"_reward_{state.turn}")
-            card_pool = self._get_reward_card_pool()
-            reward_cards = rng.sample(card_pool, min(3, len(card_pool)))
-            
-            if 0 <= card_index < len(reward_cards):
-                selected_card = reward_cards[card_index]
+        if not skip and card_index is not None and state.pending_rewards:
+            if 0 <= card_index < len(state.pending_rewards):
+                selected_card = state.pending_rewards[card_index]
                 new_card_id = f"{selected_card.id}_{uuid.uuid4().hex[:8]}"
                 selected_card.id = new_card_id
                 state.deck.draw_pile.append(selected_card)
-
+        
+        state.pending_rewards = []
         state.phase = GamePhase.MAP
         
         await self._save_game_state(state)

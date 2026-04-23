@@ -80,6 +80,7 @@ export interface GameState {
   currentFloor: number
   currentRoom: number
   rngSeed: string
+  pendingRewards: Card[]
 }
 
 export interface GameMap {

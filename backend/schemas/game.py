@@ -135,6 +135,7 @@ class GameState(BaseModel):
     current_floor: int
     current_room: int
     rng_seed: str
+    pending_rewards: List[Card] = []
 
 
 class GameStartRequest(BaseModel):
