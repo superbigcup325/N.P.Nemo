@@ -167,15 +167,15 @@ class GameService:
         state.deck.hand = state.deck.draw_pile[:draw_count]
         state.deck.draw_pile = state.deck.draw_pile[draw_count:]
         
-        state.player.energy = state.player.max_energy
-        state.player.block = 0
-        state.turn += 1
-        
         for enemy in state.enemies:
             if enemy.intent.type == EnemyIntentType.ATTACK and enemy.intent.value:
                 damage = max(0, enemy.intent.value - state.player.block)
                 state.player.hp = max(0, state.player.hp - damage)
                 state.player.block = max(0, state.player.block - enemy.intent.value)
+        
+        state.player.energy = state.player.max_energy
+        state.player.block = 0
+        state.turn += 1
         
         self._check_battle_result(state)
         
