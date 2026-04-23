@@ -88,21 +88,27 @@ class GameService:
         state_machine._current_phase = state.phase
         
         if action.type == "select_map_room":
-            if state_machine.can_transition(GamePhase.BATTLE):
-                state_machine.transition(GamePhase.BATTLE)
-                state.phase = GamePhase.BATTLE
+            payload = action.payload or {}
+            room_idx = payload.get("room_index", 0)
+            
+            if room_idx < len(state.map.floors[state.current_floor].rooms):
+                room = state.map.floors[state.current_floor].rooms[room_idx]
+                room.completed = True
                 
-                payload = action.payload or {}
-                room_idx = payload.get("room_index", 0)
-                
-                if room_idx < len(state.map.floors[state.current_floor].rooms):
-                    room = state.map.floors[state.current_floor].rooms[room_idx]
-                    room.completed = True
+                if room.type in (RoomType.BATTLE, RoomType.ELITE, RoomType.BOSS):
+                    state.phase = GamePhase.BATTLE
+                    state.enemies = [self._create_enemy(room.type)]
+                    state.deck.hand = state.deck.draw_pile[:5]
+                    state.deck.draw_pile = state.deck.draw_pile[5:]
                     
-                    if room.type in (RoomType.BATTLE, RoomType.ELITE, RoomType.BOSS):
-                        state.enemies = [self._create_enemy(room.type)]
-                        state.deck.hand = state.deck.draw_pile[:5]
-                        state.deck.draw_pile = state.deck.draw_pile[5:]
+                elif room.type == RoomType.REST:
+                    state.phase = GamePhase.REST
+                    
+                elif room.type == RoomType.SHOP:
+                    state.phase = GamePhase.SHOP
+                    
+                elif room.type == RoomType.EVENT:
+                    state.phase = GamePhase.MAP
         
         elif action.type == "play_card":
             payload = action.payload or {}
