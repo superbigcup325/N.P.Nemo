@@ -98,8 +98,14 @@ class GameService:
                 if room.type in (RoomType.BATTLE, RoomType.ELITE, RoomType.BOSS):
                     state.phase = GamePhase.BATTLE
                     state.enemies = [self._create_enemy(room.type)]
-                    state.deck.hand = state.deck.draw_pile[:5]
-                    state.deck.draw_pile = state.deck.draw_pile[5:]
+                    
+                    state.player.energy = state.player.max_energy
+                    state.player.block = 0
+                    
+                    random.shuffle(state.deck.draw_pile)
+                    draw_count = min(5, len(state.deck.draw_pile))
+                    state.deck.hand = state.deck.draw_pile[:draw_count]
+                    state.deck.draw_pile = state.deck.draw_pile[draw_count:]
                     
                 elif room.type == RoomType.REST:
                     state.phase = GamePhase.REST
@@ -150,15 +156,16 @@ class GameService:
             state.deck.discard_pile.append(card)
         state.deck.hand = []
         
-        draw_count = min(5, len(state.deck.draw_pile))
-        state.deck.hand = state.deck.draw_pile[:draw_count]
-        state.deck.draw_pile = state.deck.draw_pile[draw_count:]
-        
         if not state.deck.draw_pile:
             state.deck.draw_pile = state.deck.discard_pile[:]
             state.deck.discard_pile = []
             
             random.shuffle(state.deck.draw_pile)
+        
+        random.shuffle(state.deck.draw_pile)
+        draw_count = min(5, len(state.deck.draw_pile))
+        state.deck.hand = state.deck.draw_pile[:draw_count]
+        state.deck.draw_pile = state.deck.draw_pile[draw_count:]
         
         state.player.energy = state.player.max_energy
         state.player.block = 0
