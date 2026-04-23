@@ -264,3 +264,197 @@ class GameService:
                 max_hp=48,
                 intent=EnemyIntent(type=EnemyIntentType.ATTACK, value=6)
             )
+
+    def _get_reward_card_pool(self) -> list[Card]:
+        return [
+            Card(id="reward_heavy_blade", name="Heavy Blade", description="Deal 14 damage.",
+                 type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=2, damage=14),
+            Card(id="reward_pommel_strike", name="Pommel Strike", description="Deal 9 damage. Draw 1 card.",
+                 type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=1, damage=9),
+            Card(id="reward_carnage", name="Carnage", description="Deal 20 damage.",
+                 type=CardType.ATTACK, rarity=CardRarity.UNCOMMON, cost=2, damage=20),
+            Card(id="reward_iron_wave", name="Iron Wave", description="Gain 5 block. Deal 5 damage.",
+                 type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=1, damage=5, block=5),
+            Card(id="reward_armaments", name="Armaments", description="Gain 5 block.",
+                 type=CardType.SKILL, rarity=CardRarity.COMMON, cost=1, block=5),
+            Card(id="reward_battle_trance", name="Battle Trance", description="Draw 3 cards.",
+                 type=CardType.SKILL, rarity=CardRarity.UNCOMMON, cost=0),
+            Card(id="reward_flame_barrier", name="Flame Barrier", description="Gain 8 block. Deal 4 damage to ALL enemies when attacked.",
+                 type=CardType.SKILL, rarity=CardRarity.UNCOMMON, cost=2, block=8),
+            Card(id="reward_flex", name="Flex", description="Gain 10 strength this turn. Lose 2 strength at end of turn.",
+                 type=CardType.SKILL, rarity=CardRarity.COMMON, cost=0),
+            Card(id="reward_bloodletting", name="Bloodletting", description="Lose 3 HP. Gain 3 Energy.",
+                 type=CardType.SKILL, rarity=CardRarity.UNCOMMON, cost=0),
+            Card(id="reward_inflame", name="Inflame", description="Gain 2 Strength.",
+                 type=CardType.ABILITY, rarity=CardRarity.UNCOMMON, cost=1),
+            Card(id="reward_metallicize", name="Metallicize", description="Gain 3 Plated Armor.",
+                 type=CardType.ABILITY, rarity=CardRarity.RARE, cost=1),
+            Card(id="reward_evolve", name="Evolve", description="+1 card drawn at start of turn.",
+                 type=CardType.ABILITY, rarity=CardRarity.RARE, cost=1),
+        ]
+
+    async def generate_reward(self, game_id: str):
+        state = await self.get_game_state(game_id)
+        if not state or state.phase != GamePhase.REWARD:
+            return None
+
+        rng = random.Random(state.rng_seed + f"_reward_{state.turn}")
+        card_pool = self._get_reward_card_pool()
+        
+        reward_cards = rng.sample(card_pool, min(3, len(card_pool)))
+        
+        gold_reward = rng.randint(15, 35)
+        
+        state.player.gold += gold_reward
+        
+        reward_offer = {
+            "cards": [{"card": card.model_dump(), "selected": False} for card in reward_cards],
+            "gold_reward": gold_reward,
+            "can_skip": True
+        }
+        
+        await self._save_game_state(state)
+        return reward_offer
+
+    async def select_reward(self, game_id: str, card_index: int = None, skip: bool = False):
+        state = await self.get_game_state(game_id)
+        if not state or state.phase != GamePhase.REWARD:
+            return None
+
+        if not skip and card_index is not None:
+            rng = random.Random(state.rng_seed + f"_reward_{state.turn}")
+            card_pool = self._get_reward_card_pool()
+            reward_cards = rng.sample(card_pool, min(3, len(card_pool)))
+            
+            if 0 <= card_index < len(reward_cards):
+                selected_card = reward_cards[card_index]
+                new_card_id = f"{selected_card.id}_{uuid.uuid4().hex[:8]}"
+                selected_card.id = new_card_id
+                state.deck.draw_pile.append(selected_card)
+
+        state.phase = GamePhase.MAP
+        
+        await self._save_game_state(state)
+        return state
+
+    async def perform_rest_action(self, game_id: str, action_type: str):
+        state = await self.get_game_state(game_id)
+        if not state or state.phase != GamePhase.REST:
+            return None
+
+        if action_type == "heal":
+            heal_amount = int(state.player.maxHp * 0.3)
+            state.player.hp = min(state.player.maxHp, state.player.hp + heal_amount)
+        elif action_type == "upgrade":
+            if state.deck.draw_pile:
+                card_to_upgrade = state.deck.draw_pile[0]
+                if not card_to_upgrade.upgraded:
+                    card_to_upgrade.upgraded = True
+                    if card_to_upgrade.damage:
+                        card_to_upgrade.damage += 3
+                    if card_to_upgrade.block:
+                        card_to_upgrade.block += 2
+                    card_to_upgrade.cost = max(0, card_to_upgrade.cost - 1)
+        
+        state.phase = GamePhase.MAP
+        
+        await self._save_game_state(state)
+        return state
+
+    def _get_shop_card_pool(self) -> list[Card]:
+        return [
+            Card(id="shop_heavy_blade", name="Heavy Blade", description="Deal 14 damage.",
+                 type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=2, damage=14),
+            Card(id="shop_pommel_strike", name="Pommel Strike", description="Deal 9 damage. Draw 1 card.",
+                 type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=1, damage=9),
+            Card(id="shop_carnage", name="Carnage", description="Deal 20 damage.",
+                 type=CardType.ATTACK, rarity=CardRarity.UNCOMMON, cost=2, damage=20),
+            Card(id="shop_iron_wave", name="Iron Wave", description="Gain 5 block. Deal 5 damage.",
+                 type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=1, damage=5, block=5),
+            Card(id="shop_armaments", name="Armaments", description="Gain 5 block.",
+                 type=CardType.SKILL, rarity=CardRarity.COMMON, cost=1, block=5),
+            Card(id="shop_battle_trance", name="Battle Trance", description="Draw 3 cards.",
+                 type=CardType.SKILL, rarity=CardRarity.UNCOMMON, cost=0),
+            Card(id="shop_flame_barrier", name="Flame Barrier", description="Gain 8 block. Deal 4 damage to ALL enemies when attacked.",
+                 type=CardType.SKILL, rarity=CardRarity.UNCOMMON, cost=2, block=8),
+            Card(id="shop_flex", name="Flex", description="Gain 10 strength this turn. Lose 2 strength at end of turn.",
+                 type=CardType.SKILL, rarity=CardRarity.COMMON, cost=0),
+            Card(id="shop_inflame", name="Inflame", description="Gain 2 Strength.",
+                 type=CardType.ABILITY, rarity=CardRarity.UNCOMMON, cost=1),
+            Card(id="shop_metallicize", name="Metallicize", description="Gain 3 Plated Armor.",
+                 type=CardType.ABILITY, rarity=CardRarity.RARE, cost=1),
+        ]
+
+    async def generate_shop(self, game_id: str):
+        state = await self.get_game_state(game_id)
+        if not state or state.phase != GamePhase.SHOP:
+            return None
+
+        rng = random.Random(state.rng_seed + f"_shop_{state.turn}")
+        card_pool = self._get_shop_card_pool()
+        
+        shop_items = []
+        num_items = rng.randint(3, 5)
+        
+        selected_cards = rng.sample(card_pool, min(num_items, len(card_pool)))
+        
+        for card in selected_cards:
+            price = 50 if card.rarity == CardRarity.COMMON else (75 if card.rarity == CardRarity.UNCOMMON else 150)
+            shop_items.append({
+                "card": card.model_dump(),
+                "price": price,
+                "item_type": "card_add"
+            })
+        
+        shop_offer = {
+            "items": shop_items,
+            "remove_price": 50
+        }
+        
+        return shop_offer
+
+    async def perform_shop_action(self, game_id: str, item_index: int, action: str):
+        state = await self.get_game_state(game_id)
+        if not state or state.phase != GamePhase.SHOP:
+            return None
+
+        if action == "buy":
+            rng = random.Random(state.rng_seed + f"_shop_{state.turn}")
+            card_pool = self._get_shop_card_pool()
+            num_items = min(rng.randint(3, 5), len(card_pool))
+            selected_cards = rng.sample(card_pool, num_items)
+            
+            if 0 <= item_index < len(selected_cards):
+                card_to_buy = selected_cards[item_index]
+                
+                price = 50 if card_to_buy.rarity == CardRarity.COMMON else (75 if card_to_buy.rarity == CardRarity.UNCOMMON else 150)
+                
+                if state.player.gold >= price:
+                    state.player.gold -= price
+                    new_card_id = f"{card_to_buy.id}_{uuid.uuid4().hex[:8]}"
+                    card_to_buy.id = new_card_id
+                    state.deck.draw_pile.append(card_to_buy)
+                    
+        elif action == "remove":
+            remove_price = 50
+            
+            all_cards = (state.deck.draw_pile + state.deck.discard_pile + 
+                        state.deck.hand + state.deck.exhaust_pile)
+            
+            if state.player.gold >= remove_price and all_cards and 0 <= item_index < len(all_cards):
+                state.player.gold -= remove_price
+                card_to_remove = all_cards[item_index]
+                
+                if card_to_remove in state.deck.draw_pile:
+                    state.deck.draw_pile.remove(card_to_remove)
+                elif card_to_remove in state.deck.discard_pile:
+                    state.deck.discard_pile.remove(card_to_remove)
+                elif card_to_remove in state.deck.hand:
+                    state.deck.hand.remove(card_to_remove)
+                elif card_to_remove in state.deck.exhaust_pile:
+                    state.deck.exhaust_pile.remove(card_to_remove)
+        
+        state.phase = GamePhase.MAP
+        
+        await self._save_game_state(state)
+        return state

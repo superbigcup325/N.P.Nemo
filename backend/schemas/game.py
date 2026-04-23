@@ -151,3 +151,39 @@ class GameStartResponse(BaseModel):
 class GameAction(BaseModel):
     type: str
     payload: Optional[dict] = None
+
+
+class RewardCard(BaseModel):
+    card: Card
+    selected: bool = False
+
+
+class RewardOffer(BaseModel):
+    cards: List[RewardCard]
+    gold_reward: int = 0
+    can_skip: bool = True
+
+
+class SelectRewardRequest(BaseModel):
+    card_index: Optional[int] = None
+    skip: bool = False
+
+
+class RestActionRequest(BaseModel):
+    action_type: str  # 'heal' or 'upgrade'
+
+
+class ShopItem(BaseModel):
+    card: Card
+    price: int
+    item_type: str  # 'card_add' or 'card_remove'
+
+
+class ShopOffer(BaseModel):
+    items: List[ShopItem]
+    remove_price: int = 50
+
+
+class ShopActionRequest(BaseModel):
+    item_index: int
+    action: str  # 'buy' or 'remove'

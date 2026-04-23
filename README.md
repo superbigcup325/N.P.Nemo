@@ -20,7 +20,7 @@ N.P.Nemo 是一个纯 SVG 渲染的卡牌游戏项目，所有视觉元素均通
 
 ## 当前阶段
 
-**阶段一：工程基建与架构搭建（完善中）**
+**✅ 阶段一：工程基建与架构搭建（已完成 - v0.5.0）**
 
 - [x] 初始化 Git 仓库
 - [x] 前端项目初始化（React + TypeScript + Vite）
@@ -29,7 +29,14 @@ N.P.Nemo 是一个纯 SVG 渲染的卡牌游戏项目，所有视觉元素均通
 - [x] SVG 渲染基础设施搭建
 - [x] 前后端通信联调
 - [x] SQLite 数据库集成与 CRUD 验证
-- [x] 组件化拆分（App.tsx → 10+ 独立组件）
+- [x] 组件化拆分（App.tsx → 15+ 独立组件）
+- [x] 完整奖励系统（卡牌池、3选1奖励、金币奖励）
+- [x] 敌人意图可视化（图标+数值显示）
+- [x] 休息站点系统（回复HP/升级卡牌）
+- [x] 商店系统（购买/移除卡牌）
+- [x] Framer Motion 动画集成
+- [x] 工具函数库与游戏系统框架
+- [x] 代码质量保证（Lint + TypeScript 检查通过）
 
 ## 项目结构
 
@@ -43,7 +50,9 @@ N.P.Nemo/
 │   │   │   ├── views/            # 视图组件（按游戏相位）
 │   │   │   │   ├── MapView.tsx       # 地图界面
 │   │   │   │   ├── BattleView.tsx    # 战斗界面
-│   │   │   │   ├── RewardView.tsx    # 奖励界面
+│   │   │   │   ├── RewardView.tsx    # 奖励选择界面（3选1卡牌）
+│   │   │   │   ├── RestSiteView.tsx  # 休息站点界面（回复/升级）
+│   │   │   │   ├── ShopView.tsx      # 商店界面（购买/移除卡牌）
 │   │   │   │   ├── VictoryOverlay.tsx # 胜利弹窗
 │   │   │   │   └── DefeatOverlay.tsx # 失败弹窗
 │   │   │   └── battle/           # 战斗子组件
@@ -51,28 +60,28 @@ N.P.Nemo/
 │   │   │       ├── EnemyPanel.tsx     # 敌人面板
 │   │   │       ├── PlayerPanel.tsx    # 玩家面板
 │   │   │       └── HandArea.tsx       # 手牌区域
-│   │   ├── systems/             # 游戏系统
+│   │   ├── systems/             # 游戏系统框架（BattleSystem/MapSystem/RewardSystem）
 │   │   ├── stores/              # Zustand 状态管理
 │   │   │   ├── gameStore.ts     # 游戏状态
 │   │   │   └── uiStore.ts       # UI状态
 │   │   ├── services/            # API 服务层
-│   │   │   └── api.ts           # 后端通信（含错误处理+camelCase转换）
+│   │   │   └── api.ts           # 后端通信（含错误处理+camelCase转换+奖励/商店API）
 │   │   ├── svg/                 # SVG 渲染模块
 │   │   │   ├── SVGCanvas.tsx    # SVG 画布容器
 │   │   │   └── layers/          # 图层容器
 │   │   ├── types/               # TypeScript 类型定义
-│   │   │   └── game.ts          # 游戏数据契约
-│   │   └── utils/               # 工具函数
+│   │   │   └── game.ts          # 游戏数据契约（含奖励/商店类型）
+│   │   └── utils/               # 工具函数（数学工具、数组操作、颜色常量）
 │   └── vite.config.ts           # Vite 配置（含代理）
 ├── backend/                     # 后端项目
 │   ├── routers/                 # API 路由
 │   │   └── game.py              # 游戏相关路由
 │   ├── services/                # 业务逻辑
-│   │   └── game_service.py      # 游戏服务（SQLite CRUD）
+│   │   └── game_service.py      # 游戏服务（SQLite CRUD + 奖励/休息/商店逻辑）
 │   ├── models/                  # 数据库模型
 │   │   └── game.py              # 游戏数据模型
 │   ├── schemas/                 # Pydantic Schema
-│   │   └── game.py              # 请求/响应模型
+│   │   └── game.py              # 请求/响应模型（含奖励/商店/休息Schema）
 │   ├── scripts/                 # 工具脚本
 │   │   └── generate_openapi.py  # OpenAPI 生成脚本
 │   ├── core/                    # 核心配置
@@ -149,6 +158,7 @@ npm run generate:types
 | v0.3.0 | 2026-04-18 | 阶段一核心完成：完整游戏循环（地图→战斗→奖励），前后端联调通过 |
 | v0.3.1 | 2026-04-19 | 修复 SVG 交互、胜负判定、API 错误处理；添加 Victory/Defeat 界面 |
 | v0.4.0 | 2026-04-19 | 阶段一完善：SQLite 数据库集成、组件化拆分（10+独立组件） |
+| v0.5.0 | 2026-04-22 | **阶段一遗留问题全面完善**：<br>✅ 完整奖励系统（12张奖励卡牌池、3选1卡牌奖励、金币奖励、跳过选项）<br>✅ 敌人意图图标显示（攻击/防御/增益/减益可视化）<br>✅ 休息站点系统（30%HP回复或升级一张卡牌）<br>✅ 商店系统（10张商店卡牌池、购买/移除卡牌、金币系统）<br>✅ Framer Motion 动画集成（卡牌悬浮放大、HP条动画、入场动画）<br>✅ 工具函数库（数学工具、数组操作、颜色常量）<br>✅ 游戏系统框架（BattleSystem/MapSystem/RewardSystem 配置化）<br>✅ 代码质量优化（Lint 检查通过、TypeScript 类型检查通过） |
 
 ## 许可证
 

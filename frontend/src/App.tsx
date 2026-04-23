@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { SVGCanvas } from './svg'
 import {
   MenuBackground,
@@ -6,6 +6,8 @@ import {
   MapView,
   BattleView,
   RewardView,
+  RestSiteView,
+  ShopView,
   VictoryOverlay,
   DefeatOverlay
 } from './components'
@@ -13,7 +15,7 @@ import { useGameStore } from './stores/gameStore'
 import { useUIStore } from './stores/uiStore'
 import { api } from './services/api'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import type { GameAction } from './types'
+import type { GameAction, RewardOffer, ShopOffer, GamePhase } from './types'
 import './index.css'
 
 function GameContent() {
@@ -24,9 +26,29 @@ function GameContent() {
   const setGameState = useGameStore((s) => s.setGameState)
   const setLoading = useGameStore((s) => s.setLoading)
   const setError = useGameStore((s) => s.setError)
-  const resetGame = useGameStore((s) => s.resetGame)
   
   const setPhase = useUIStore((s) => s.setPhase)
+  
+  const [rewardData, setRewardData] = useState<RewardOffer | null>(null)
+  const [shopData, setShopData] = useState<ShopOffer | null>(null)
+
+  useEffect(() => {
+    if (gameState?.phase === 'reward' && !rewardData) {
+      api.getReward(gameState.gameId)
+        .then(setRewardData)
+        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to fetch reward'))
+    }
+    
+    if (gameState?.phase === 'shop' && !shopData) {
+      api.getShop(gameState.gameId)
+        .then(setShopData)
+        .catch((err) => setError(err instanceof Error ? err.message : 'Failed to fetch shop'))
+    }
+  }, [gameState?.phase, gameState?.gameId])
+
+  const updatePhase = useCallback((newState: { phase: string }) => {
+    setPhase(newState.phase as GamePhase)
+  }, [setPhase])
 
   const handleStartGame = useCallback(async () => {
     setLoading(true)
@@ -38,6 +60,8 @@ function GameContent() {
       setPhase('map')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start game')
+    } finally {
+      setLoading(false)
     }
   }, [setGameState, setLoading, setError, setPhase])
 
@@ -50,14 +74,14 @@ function GameContent() {
       const newState = await api.performAction(gameState.gameId, action)
       if (newState) {
         setGameState(newState)
-        setPhase(newState.phase as any)
+        updatePhase(newState)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setLoading(false)
     }
-  }, [gameState, setGameState, setPhase, setLoading, setError])
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
 
   const handleEndTurn = useCallback(async () => {
     if (!gameState) return
@@ -68,19 +92,113 @@ function GameContent() {
       const newState = await api.endTurn(gameState.gameId)
       if (newState) {
         setGameState(newState)
-        setPhase(newState.phase as any)
+        updatePhase(newState)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'End turn failed')
     } finally {
       setLoading(false)
     }
-  }, [gameState, setGameState, setPhase, setLoading, setError])
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
 
-  const handleReset = useCallback(() => {
-    resetGame()
-    setPhase('menu')
-  }, [resetGame, setPhase])
+  const handleSelectRewardCard = useCallback(async (cardIndex: number) => {
+    if (!gameState) return
+    
+    setLoading(true)
+    
+    try {
+      const newState = await api.selectReward(gameState.gameId, { cardIndex })
+      if (newState) {
+        setGameState(newState)
+        updatePhase(newState)
+        setRewardData(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to select reward')
+    } finally {
+      setLoading(false)
+    }
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
+
+  const handleSkipReward = useCallback(async () => {
+    if (!gameState) return
+    
+    setLoading(true)
+    
+    try {
+      const newState = await api.selectReward(gameState.gameId, { skip: true })
+      if (newState) {
+        setGameState(newState)
+        updatePhase(newState)
+        setRewardData(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to skip reward')
+    } finally {
+      setLoading(false)
+    }
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
+
+  const handleRestAction = useCallback(async (actionType: 'heal' | 'upgrade') => {
+    if (!gameState) return
+    
+    setLoading(true)
+    
+    try {
+      const newState = await api.restAction(gameState.gameId, { actionType })
+      if (newState) {
+        setGameState(newState)
+        updatePhase(newState)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to perform rest action')
+    } finally {
+      setLoading(false)
+    }
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
+
+  const handleShopBuy = useCallback(async (itemIndex: number) => {
+    if (!gameState) return
+    
+    setLoading(true)
+    
+    try {
+      const newState = await api.shopAction(gameState.gameId, { itemIndex, action: 'buy' })
+      if (newState) {
+        setGameState(newState)
+        updatePhase(newState)
+        setShopData(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to buy item')
+    } finally {
+      setLoading(false)
+    }
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
+
+  const handleShopRemove = useCallback(async (cardIndex: number) => {
+    if (!gameState) return
+    
+    setLoading(true)
+    
+    try {
+      const newState = await api.shopAction(gameState.gameId, { itemIndex: cardIndex, action: 'remove' })
+      if (newState) {
+        setGameState(newState)
+        updatePhase(newState)
+        setShopData(null)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove card')
+    } finally {
+      setLoading(false)
+    }
+  }, [gameState, setGameState, updatePhase, setLoading, setError])
+
+  const handleLeaveShop = useCallback(() => {
+    setPhase('map')
+    setShopData(null)
+  }, [setPhase])
 
   const handlePlayCard = useCallback((cardIndex: number) => {
     handleAction({ type: 'play_card', payload: { card_index: cardIndex, target_index: 0 } })
@@ -111,7 +229,38 @@ function GameContent() {
             />
           )}
 
-          {gameState?.phase === 'reward' && <RewardView />}
+          {gameState?.phase === 'reward' && rewardData && (
+            <RewardView
+              reward={rewardData}
+              onSelectCard={handleSelectRewardCard}
+              onSkip={handleSkipReward}
+            />
+          )}
+
+          {gameState?.phase === 'rest' && (
+            <RestSiteView
+              player={gameState.player}
+              upgradeCard={gameState.deck.draw_pile[0] || null}
+              onHeal={() => handleRestAction('heal')}
+              onUpgrade={() => handleRestAction('upgrade')}
+            />
+          )}
+
+          {gameState?.phase === 'shop' && shopData && (
+            <ShopView
+              shop={shopData}
+              gold={gameState.player.gold}
+              allCards={[
+                ...gameState.deck.draw_pile,
+                ...gameState.deck.discard_pile,
+                ...gameState.deck.hand,
+                ...gameState.deck.exhaust_pile
+              ]}
+              onBuyItem={handleShopBuy}
+              onRemoveCard={handleShopRemove}
+              onLeave={handleLeaveShop}
+            />
+          )}
         </GameLayers>
         
         {!gameState && !isLoading && (

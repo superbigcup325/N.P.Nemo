@@ -114,3 +114,39 @@ export interface GameStartResponse {
   gameId: string
   gameState: GameState
 }
+
+export interface RewardCard {
+  card: Card
+  selected: boolean
+}
+
+export interface RewardOffer {
+  cards: RewardCard[]
+  goldReward: number
+  canSkip: boolean
+}
+
+export interface SelectRewardRequest {
+  cardIndex?: number
+  skip?: boolean
+}
+
+export interface RestActionRequest {
+  actionType: 'heal' | 'upgrade'
+}
+
+export interface ShopItem {
+  card: Card
+  price: number
+  itemType: 'card_add' | 'card_remove'
+}
+
+export interface ShopOffer {
+  items: ShopItem[]
+  removePrice: number
+}
+
+export interface ShopActionRequest {
+  itemIndex: number
+  action: 'buy' | 'remove'
+}

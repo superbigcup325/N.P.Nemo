@@ -1,4 +1,4 @@
-import type { GameState, GameAction, GameStartRequest, GameStartResponse } from '../types'
+import type { GameState, GameAction, GameStartRequest, GameStartResponse, RewardOffer, SelectRewardRequest, RestActionRequest, ShopOffer, ShopActionRequest } from '../types'
 
 const API_BASE = '/api'
 
@@ -85,6 +85,35 @@ class ApiService {
   async endTurn(gameId: string): Promise<GameState> {
     return this.request<GameState>(`/game/${gameId}/end-turn`, {
       method: 'POST'
+    })
+  }
+  
+  async getReward(gameId: string): Promise<RewardOffer> {
+    return this.request<RewardOffer>(`/game/${gameId}/reward`)
+  }
+  
+  async selectReward(gameId: string, request: SelectRewardRequest): Promise<GameState> {
+    return this.request<GameState>(`/game/${gameId}/reward/select`, {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  }
+  
+  async restAction(gameId: string, request: RestActionRequest): Promise<GameState> {
+    return this.request<GameState>(`/game/${gameId}/rest`, {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  }
+  
+  async getShop(gameId: string): Promise<ShopOffer> {
+    return this.request<ShopOffer>(`/game/${gameId}/shop`)
+  }
+  
+  async shopAction(gameId: string, request: ShopActionRequest): Promise<GameState> {
+    return this.request<GameState>(`/game/${gameId}/shop/action`, {
+      method: 'POST',
+      body: JSON.stringify(request)
     })
   }
 }

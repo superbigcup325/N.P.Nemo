@@ -1,5 +1,3 @@
-import type { GameAction } from '../../types'
-
 interface MapViewProps {
   currentFloor: number
   rooms: Array<{

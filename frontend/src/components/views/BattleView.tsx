@@ -1,7 +1,7 @@
 import type { GameState } from '../../types'
-import { EnemyPanel } from './EnemyPanel'
-import { PlayerPanel } from './PlayerPanel'
-import { HandArea } from './HandArea'
+import { EnemyPanel } from '../battle/EnemyPanel'
+import { PlayerPanel } from '../battle/PlayerPanel'
+import { HandArea } from '../battle/HandArea'
 
 interface BattleViewProps {
   gameState: GameState

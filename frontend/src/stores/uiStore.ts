@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import type { GamePhase as BackendGamePhase } from '../types'
 
-type GamePhase = 'menu' | 'map' | 'battle' | 'reward' | 'shop' | 'rest' | 'game_over' | 'victory'
+type GamePhase = 'menu' | BackendGamePhase
 type AnimationState = 'idle' | 'playing' | 'paused'
 
 interface UIStore {
