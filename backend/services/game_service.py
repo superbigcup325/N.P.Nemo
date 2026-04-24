@@ -1,4 +1,3 @@
-import json
 import uuid
 import random
 from typing import Optional
@@ -10,26 +9,27 @@ from schemas.game import (
     GamePhase, Player, Enemy, EnemyIntent, EnemyIntentType,
     Deck, Card, CardType, CardRarity, GameMap, MapFloor, MapRoom, RoomType
 )
-from core.state_machine import GameStateMachine
+from core.state_machine import GameStateMachine, BattleTurn
 from models.game import GameModel
 
 
 class GameService:
-    
+
     def __init__(self, session: AsyncSession):
         self.session = session
-    
+
     async def start_game(self, request: GameStartRequest) -> GameStartResponse:
         game_id = str(uuid.uuid4())
         seed = request.seed or str(uuid.uuid4())
-        
+
         initial_deck = self._create_starter_deck()
         game_map = self._generate_map(seed)
-        
+
         game_state = GameState(
             game_id=game_id,
             phase=GamePhase.MAP,
             turn=0,
+            battle_turn="player",
             player=Player(
                 hp=80,
                 max_hp=80,
@@ -50,81 +50,82 @@ class GameService:
             current_room=0,
             rng_seed=seed
         )
-        
+
         game_record = GameModel(id=game_id, state=game_state.model_dump_json())
         self.session.add(game_record)
         await self.session.commit()
         await self.session.refresh(game_record)
-        
+
         return GameStartResponse(game_id=game_id, game_state=game_state)
-    
+
     async def get_game_state(self, game_id: str) -> Optional[GameState]:
         result = await self.session.execute(
             select(GameModel).where(GameModel.id == game_id)
         )
         game_record = result.scalar_one_or_none()
-        
+
         if not game_record:
             return None
-        
+
         return GameState.model_validate_json(game_record.state)
-    
+
     async def _save_game_state(self, state: GameState) -> None:
         result = await self.session.execute(
             select(GameModel).where(GameModel.id == state.game_id)
         )
         game_record = result.scalar_one_or_none()
-        
+
         if game_record:
             game_record.state = state.model_dump_json()
             await self.session.commit()
-    
+
     async def perform_action(self, game_id: str, action: GameAction) -> Optional[GameState]:
         state = await self.get_game_state(game_id)
         if not state:
             return None
-        
-        state_machine = GameStateMachine()
-        state_machine._current_phase = state.phase
-        
+
         if action.type == "select_map_room":
             payload = action.payload or {}
             room_idx = payload.get("room_index", 0)
-            
+
             if room_idx < len(state.map.floors[state.current_floor].rooms):
                 room = state.map.floors[state.current_floor].rooms[room_idx]
                 room.completed = True
-                
+
                 if room.type in (RoomType.BATTLE, RoomType.ELITE, RoomType.BOSS):
                     state.phase = GamePhase.BATTLE
-                    state.enemies = [self._create_enemy(room.type)]
-                    
+                    state.battle_turn = "player"
+                    state.enemies = [self._create_enemy(room.type, state.rng_seed, state.turn)]
+
                     state.player.energy = state.player.max_energy
                     state.player.block = 0
-                    
-                    random.shuffle(state.deck.draw_pile)
-                    draw_count = min(5, len(state.deck.draw_pile))
-                    state.deck.hand = state.deck.draw_pile[:draw_count]
-                    state.deck.draw_pile = state.deck.draw_pile[draw_count:]
-                    
+
+                    self._shuffle_deck(state)
+                    self._draw_cards(state, 5)
+
                 elif room.type == RoomType.REST:
                     state.phase = GamePhase.REST
-                    
+
                 elif room.type == RoomType.SHOP:
                     state.phase = GamePhase.SHOP
-                    
+
                 elif room.type == RoomType.EVENT:
                     state.phase = GamePhase.MAP
-        
+
         elif action.type == "play_card":
             payload = action.payload or {}
             card_index = payload.get("card_index", -1)
-            
+
+            if state.battle_turn != "player":
+                await self._save_game_state(state)
+                return state
+
             if 0 <= card_index < len(state.deck.hand):
-                card = state.deck.hand.pop(card_index)
+                card = state.deck.hand[card_index]
                 if state.player.energy >= card.cost:
                     state.player.energy -= card.cost
-                    
+                    state.deck.hand.pop(card_index)
+
                     if card.damage and state.enemies:
                         target_idx = payload.get("target_index", 0)
                         if target_idx < len(state.enemies):
@@ -132,67 +133,85 @@ class GameService:
                             actual_damage = max(0, card.damage - enemy.block)
                             enemy.hp -= actual_damage
                             enemy.block = max(0, enemy.block - card.damage)
-                    
+
                     if card.block:
                         state.player.block += card.block
-                    
+
                     state.deck.discard_pile.append(card)
-        
+
         elif action.type == "end_turn":
-            await self.end_turn(game_id)
-            return await self.get_game_state(game_id)
-        
+            result = await self.end_turn(game_id)
+            return result
+
         self._check_battle_result(state)
-        
         await self._save_game_state(state)
         return state
-    
+
     async def end_turn(self, game_id: str) -> Optional[GameState]:
         state = await self.get_game_state(game_id)
         if not state:
             return None
-        
+
+        if state.phase != GamePhase.BATTLE:
+            return None
+
+        state.battle_turn = "enemy"
+
         for card in state.deck.hand:
             state.deck.discard_pile.append(card)
         state.deck.hand = []
-        
-        if not state.deck.draw_pile:
-            state.deck.draw_pile = state.deck.discard_pile[:]
-            state.deck.discard_pile = []
-            
-            random.shuffle(state.deck.draw_pile)
-        
-        random.shuffle(state.deck.draw_pile)
-        draw_count = min(5, len(state.deck.draw_pile))
-        state.deck.hand = state.deck.draw_pile[:draw_count]
-        state.deck.draw_pile = state.deck.draw_pile[draw_count:]
-        
+
         for enemy in state.enemies:
+            if enemy.hp <= 0:
+                continue
+
             if enemy.intent.type == EnemyIntentType.ATTACK and enemy.intent.value:
                 damage = max(0, enemy.intent.value - state.player.block)
                 state.player.hp = max(0, state.player.hp - damage)
                 state.player.block = max(0, state.player.block - enemy.intent.value)
-        
+            elif enemy.intent.type == EnemyIntentType.DEFEND and enemy.intent.value:
+                enemy.block += enemy.intent.value
+            elif enemy.intent.type == EnemyIntentType.BUFF and enemy.intent.value:
+                enemy.intent.value += 2
+
+            enemy.intent = self._generate_enemy_intent(enemy, state.rng_seed, state.turn)
+
         state.player.energy = state.player.max_energy
         state.player.block = 0
         state.turn += 1
-        
+        state.battle_turn = "player"
+
+        if not state.deck.draw_pile:
+            state.deck.draw_pile = state.deck.discard_pile[:]
+            state.deck.discard_pile = []
+            self._shuffle_deck(state)
+
+        self._draw_cards(state, 5)
+
         self._check_battle_result(state)
-        
         await self._save_game_state(state)
         return state
-    
+
+    def _shuffle_deck(self, state: GameState) -> None:
+        rng = random.Random(state.rng_seed + f"_shuffle_{state.turn}")
+        rng.shuffle(state.deck.draw_pile)
+
+    def _draw_cards(self, state: GameState, count: int) -> None:
+        draw_count = min(count, len(state.deck.draw_pile))
+        state.deck.hand = state.deck.draw_pile[:draw_count]
+        state.deck.draw_pile = state.deck.draw_pile[draw_count:]
+
     def _check_battle_result(self, state: GameState) -> None:
         if state.phase != GamePhase.BATTLE:
             return
-        
+
         if state.player.hp <= 0:
             state.phase = GamePhase.GAME_OVER
             state.enemies = []
             return
-        
+
         alive_enemies = [e for e in state.enemies if e.hp > 0]
-        
+
         if state.enemies and not alive_enemies:
             if state.current_floor >= len(state.map.floors) - 1 and any(
                 r.type == RoomType.BOSS for r in state.map.floors[state.current_floor].rooms
@@ -215,15 +234,15 @@ class GameService:
             Card(id="bash", name="Bash", description="Deal 8 damage. Apply 2 Vulnerable.",
                  type=CardType.ATTACK, rarity=CardRarity.COMMON, cost=2, damage=8)
         ]
-    
+
     def _generate_map(self, seed: str) -> GameMap:
         rng = random.Random(seed)
         floors = []
-        
+
         for floor_idx in range(3):
             rooms = []
             num_rooms = rng.randint(3, 5)
-            
+
             for room_idx in range(num_rooms):
                 room_type = self._random_room_type(rng, floor_idx, room_idx == num_rooms - 1)
                 room = MapRoom(
@@ -233,15 +252,15 @@ class GameService:
                     connections=[]
                 )
                 rooms.append(room)
-            
+
             floors.append(MapFloor(rooms=rooms))
-        
+
         return GameMap(floors=floors)
-    
+
     def _random_room_type(self, rng: random.Random, floor: int, is_last: bool) -> RoomType:
         if is_last:
             return RoomType.BOSS if floor == 2 else RoomType.ELITE
-        
+
         roll = rng.random()
         if roll < 0.6:
             return RoomType.BATTLE
@@ -251,32 +270,66 @@ class GameService:
             return RoomType.SHOP
         else:
             return RoomType.EVENT
-    
-    def _create_enemy(self, room_type: RoomType) -> Enemy:
+
+    def _create_enemy(self, room_type: RoomType, seed: str, turn: int) -> Enemy:
+        rng = random.Random(seed + f"_enemy_{turn}")
+
         if room_type == RoomType.BOSS:
-            return Enemy(
+            enemy = Enemy(
                 id="boss_1",
                 name="Guardian",
                 hp=200,
                 max_hp=200,
+                block=0,
                 intent=EnemyIntent(type=EnemyIntentType.ATTACK, value=16)
             )
         elif room_type == RoomType.ELITE:
-            return Enemy(
+            enemy = Enemy(
                 id="elite_1",
                 name="Sentinel",
                 hp=120,
                 max_hp=120,
+                block=0,
                 intent=EnemyIntent(type=EnemyIntentType.ATTACK, value=12)
             )
         else:
-            return Enemy(
+            enemy = Enemy(
                 id="mob_1",
                 name="Cultist",
                 hp=48,
                 max_hp=48,
+                block=0,
                 intent=EnemyIntent(type=EnemyIntentType.ATTACK, value=6)
             )
+
+        enemy.intent = self._generate_enemy_intent(enemy, seed, turn)
+        return enemy
+
+    def _generate_enemy_intent(self, enemy: Enemy, seed: str, turn: int) -> EnemyIntent:
+        rng = random.Random(seed + f"_intent_{enemy.id}_{turn}")
+        roll = rng.random()
+
+        if enemy.id.startswith("boss"):
+            if roll < 0.5:
+                return EnemyIntent(type=EnemyIntentType.ATTACK, value=16 + turn)
+            elif roll < 0.75:
+                return EnemyIntent(type=EnemyIntentType.DEFEND, value=12)
+            else:
+                return EnemyIntent(type=EnemyIntentType.BUFF, value=2)
+        elif enemy.id.startswith("elite"):
+            if roll < 0.55:
+                return EnemyIntent(type=EnemyIntentType.ATTACK, value=12)
+            elif roll < 0.8:
+                return EnemyIntent(type=EnemyIntentType.DEFEND, value=8)
+            else:
+                return EnemyIntent(type=EnemyIntentType.BUFF, value=2)
+        else:
+            if roll < 0.6:
+                return EnemyIntent(type=EnemyIntentType.ATTACK, value=6 + rng.randint(0, 3))
+            elif roll < 0.85:
+                return EnemyIntent(type=EnemyIntentType.DEFEND, value=5)
+            else:
+                return EnemyIntent(type=EnemyIntentType.BUFF, value=1)
 
     def _get_reward_card_pool(self) -> list[Card]:
         return [
@@ -313,20 +366,20 @@ class GameService:
 
         rng = random.Random(state.rng_seed + f"_reward_{state.turn}")
         card_pool = self._get_reward_card_pool()
-        
+
         reward_cards = rng.sample(card_pool, min(3, len(card_pool)))
-        
+
         gold_reward = rng.randint(15, 35)
-        
+
         state.player.gold += gold_reward
         state.pending_rewards = reward_cards
-        
+
         reward_offer = {
             "cards": [{"card": card.model_dump(), "selected": False} for card in reward_cards],
             "gold_reward": gold_reward,
             "can_skip": True
         }
-        
+
         await self._save_game_state(state)
         return reward_offer
 
@@ -341,10 +394,10 @@ class GameService:
                 new_card_id = f"{selected_card.id}_{uuid.uuid4().hex[:8]}"
                 selected_card.id = new_card_id
                 state.deck.draw_pile.append(selected_card)
-        
+
         state.pending_rewards = []
         state.phase = GamePhase.MAP
-        
+
         await self._save_game_state(state)
         return state
 
@@ -354,8 +407,8 @@ class GameService:
             return None
 
         if action_type == "heal":
-            heal_amount = int(state.player.maxHp * 0.3)
-            state.player.hp = min(state.player.maxHp, state.player.hp + heal_amount)
+            heal_amount = int(state.player.max_hp * 0.3)
+            state.player.hp = min(state.player.max_hp, state.player.hp + heal_amount)
         elif action_type == "upgrade":
             if state.deck.draw_pile:
                 card_to_upgrade = state.deck.draw_pile[0]
@@ -366,9 +419,9 @@ class GameService:
                     if card_to_upgrade.block:
                         card_to_upgrade.block += 2
                     card_to_upgrade.cost = max(0, card_to_upgrade.cost - 1)
-        
+
         state.phase = GamePhase.MAP
-        
+
         await self._save_game_state(state)
         return state
 
@@ -403,12 +456,12 @@ class GameService:
 
         rng = random.Random(state.rng_seed + f"_shop_{state.turn}")
         card_pool = self._get_shop_card_pool()
-        
+
         shop_items = []
         num_items = rng.randint(3, 5)
-        
+
         selected_cards = rng.sample(card_pool, min(num_items, len(card_pool)))
-        
+
         for card in selected_cards:
             price = 50 if card.rarity == CardRarity.COMMON else (75 if card.rarity == CardRarity.UNCOMMON else 150)
             shop_items.append({
@@ -416,12 +469,12 @@ class GameService:
                 "price": price,
                 "item_type": "card_add"
             })
-        
+
         shop_offer = {
             "items": shop_items,
             "remove_price": 50
         }
-        
+
         return shop_offer
 
     async def perform_shop_action(self, game_id: str, item_index: int, action: str):
@@ -434,28 +487,28 @@ class GameService:
             card_pool = self._get_shop_card_pool()
             num_items = min(rng.randint(3, 5), len(card_pool))
             selected_cards = rng.sample(card_pool, num_items)
-            
+
             if 0 <= item_index < len(selected_cards):
                 card_to_buy = selected_cards[item_index]
-                
+
                 price = 50 if card_to_buy.rarity == CardRarity.COMMON else (75 if card_to_buy.rarity == CardRarity.UNCOMMON else 150)
-                
+
                 if state.player.gold >= price:
                     state.player.gold -= price
                     new_card_id = f"{card_to_buy.id}_{uuid.uuid4().hex[:8]}"
                     card_to_buy.id = new_card_id
                     state.deck.draw_pile.append(card_to_buy)
-                    
+
         elif action == "remove":
             remove_price = 50
-            
-            all_cards = (state.deck.draw_pile + state.deck.discard_pile + 
+
+            all_cards = (state.deck.draw_pile + state.deck.discard_pile +
                         state.deck.hand + state.deck.exhaust_pile)
-            
+
             if state.player.gold >= remove_price and all_cards and 0 <= item_index < len(all_cards):
                 state.player.gold -= remove_price
                 card_to_remove = all_cards[item_index]
-                
+
                 if card_to_remove in state.deck.draw_pile:
                     state.deck.draw_pile.remove(card_to_remove)
                 elif card_to_remove in state.deck.discard_pile:
@@ -464,8 +517,8 @@ class GameService:
                     state.deck.hand.remove(card_to_remove)
                 elif card_to_remove in state.deck.exhaust_pile:
                     state.deck.exhaust_pile.remove(card_to_remove)
-        
+
         state.phase = GamePhase.MAP
-        
+
         await self._save_game_state(state)
         return state
