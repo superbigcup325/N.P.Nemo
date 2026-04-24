@@ -9,10 +9,23 @@ interface BattleViewProps {
 }
 
 export function BattleView({ gameState, onPlayCard }: BattleViewProps) {
+  const isPlayerTurn = gameState.battleTurn === 'player'
+
   return (
     <>
       <text x={40} y={40} fill="#e74c3c" fontSize={16} fontWeight="bold">
         BATTLE - Turn {gameState.turn + 1}
+      </text>
+
+      <text
+        x={400}
+        y={40}
+        textAnchor="middle"
+        fill={isPlayerTurn ? '#27ae60' : '#e74c3c'}
+        fontSize={14}
+        fontWeight="bold"
+      >
+        {isPlayerTurn ? 'Your Turn' : "Enemy's Turn"}
       </text>
 
       {gameState.enemies.map((enemy) => (
@@ -21,7 +34,9 @@ export function BattleView({ gameState, onPlayCard }: BattleViewProps) {
 
       <PlayerPanel player={gameState.player} />
 
-      <HandArea cards={gameState.deck.hand} onPlayCard={onPlayCard} />
+      {isPlayerTurn && (
+        <HandArea cards={gameState.deck.hand} onPlayCard={onPlayCard} />
+      )}
     </>
   )
 }

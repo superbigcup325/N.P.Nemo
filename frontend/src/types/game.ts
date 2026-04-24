@@ -73,6 +73,7 @@ export interface GameState {
   gameId: string
   phase: GamePhase
   turn: number
+  battleTurn: 'player' | 'enemy'
   player: Player
   enemies: Enemy[]
   deck: Deck
