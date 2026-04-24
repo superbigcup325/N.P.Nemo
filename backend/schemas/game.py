@@ -128,6 +128,7 @@ class GameState(BaseModel):
     game_id: str
     phase: GamePhase
     turn: int
+    battle_turn: str = "player"  # 'player' or 'enemy'
     player: Player
     enemies: List[Enemy] = []
     deck: Deck
