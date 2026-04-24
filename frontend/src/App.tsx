@@ -240,7 +240,7 @@ function GameContent() {
           {gameState?.phase === 'rest' && (
             <RestSiteView
               player={gameState.player}
-              upgradeCard={gameState.deck.draw_pile[0] || null}
+              upgradeCard={gameState.deck?.drawPile?.[0] || null}
               onHeal={() => handleRestAction('heal')}
               onUpgrade={() => handleRestAction('upgrade')}
             />
@@ -250,12 +250,12 @@ function GameContent() {
             <ShopView
               shop={shopData}
               gold={gameState.player.gold}
-              allCards={[
-                ...gameState.deck.draw_pile,
-                ...gameState.deck.discard_pile,
-                ...gameState.deck.hand,
-                ...gameState.deck.exhaust_pile
-              ]}
+              allCards={gameState.deck ? [
+                ...(gameState.deck.drawPile || []),
+                ...(gameState.deck.discardPile || []),
+                ...(gameState.deck.hand || []),
+                ...(gameState.deck.exhaustPile || [])
+              ] : []}
               onBuyItem={handleShopBuy}
               onRemoveCard={handleShopRemove}
               onLeave={handleLeaveShop}

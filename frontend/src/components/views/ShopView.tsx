@@ -9,11 +9,11 @@ interface ShopViewProps {
   onLeave: () => void
 }
 
-function ShopCardItem({ card, price, canAfford, onClick }: { 
-  card: Card; 
-  price: number; 
-  canAfford: boolean;
-  onClick: () => void 
+function ShopCardItem({ card, price, canAfford, onClick }: {
+  card: Card
+  price: number
+  canAfford: boolean
+  onClick: () => void
 }) {
   const bgColor = card.type === 'attack' ? '#3d1a1a' : card.type === 'skill' ? '#1a2a3d' : '#2a2a1a'
   const strokeColor = canAfford ? (card.type === 'attack' ? '#c0392b' : card.type === 'skill' ? '#2980b9' : '#f39c12') : '#555'
@@ -113,7 +113,6 @@ export function ShopView({ shop, gold, onBuyItem, onRemoveCard, onLeave }: ShopV
           <ShopCardItem
             card={item.card}
             price={item.price}
-            gold={gold}
             canAfford={gold >= item.price}
             onClick={() => onBuyItem(idx)}
           />

@@ -39,7 +39,7 @@ export const useGameStore = create<GameStore>((set) => ({
   updateHand: (hand) => set((state) => ({
     gameState: state.gameState ? {
       ...state.gameState,
-      hand
+      deck: { ...state.gameState.deck, hand }
     } : null
   })),
   
