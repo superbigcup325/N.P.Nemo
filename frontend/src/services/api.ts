@@ -3,13 +3,14 @@ import type { GameState, GameAction, GameStartRequest, GameStartResponse, Reward
 const API_BASE = '/api'
 
 class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public detail?: unknown
-  ) {
+  status: number
+  detail?: unknown
+
+  constructor(status: number, message: string, detail?: unknown) {
     super(message)
     this.name = 'ApiError'
+    this.status = status
+    this.detail = detail
   }
 }
 

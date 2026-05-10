@@ -9,7 +9,8 @@ import {
   RestSiteView,
   ShopView,
   VictoryOverlay,
-  DefeatOverlay
+  DefeatOverlay,
+  DeckView
 } from './components'
 import { useGameStore } from './stores/gameStore'
 import { useUIStore } from './stores/uiStore'
@@ -28,6 +29,8 @@ function GameContent() {
   const setError = useGameStore((s) => s.setError)
   
   const setPhase = useUIStore((s) => s.setPhase)
+  const showDeckView = useUIStore((s) => s.showDeckView)
+  const toggleDeckView = useUIStore((s) => s.toggleDeckView)
   
   const [rewardData, setRewardData] = useState<RewardOffer | null>(null)
   const [shopData, setShopData] = useState<ShopOffer | null>(null)
@@ -69,7 +72,6 @@ function GameContent() {
     if (!gameState) return
 
     setLoading(true)
-    console.log('[DEBUG] handleAction:', action)
     
     try {
       const newState = await api.performAction(gameState.gameId, action)
@@ -266,7 +268,7 @@ function GameContent() {
         </GameLayers>
         
         {!gameState && !isLoading && (
-          <g style={{ cursor: 'pointer' }} onClick={() => { console.log('CLICKED'); handleStartGame(); }}>
+          <g style={{ cursor: 'pointer' }} onClick={handleStartGame}>
             <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2} />
             <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold">Start Game</text>
           </g>
@@ -287,6 +289,17 @@ function GameContent() {
           
         {gameState?.phase === 'game_over' && (
           <DefeatOverlay currentFloor={gameState.currentFloor} turns={gameState.turn} />
+        )}
+
+        {gameState && !showDeckView && (
+          <g style={{ cursor: 'pointer' }} onClick={toggleDeckView}>
+            <rect x={710} y={10} width={70} height={28} rx={14} fill="#2a2a3a" stroke="#6a6a8a" strokeWidth={1} />
+            <text x={745} y={29} textAnchor="middle" fill="#aaa" fontSize={11} fontWeight="bold">Deck</text>
+          </g>
+        )}
+
+        {gameState && showDeckView && (
+          <DeckView deck={gameState.deck} onClose={toggleDeckView} />
         )}
       </SVGCanvas>
     </div>

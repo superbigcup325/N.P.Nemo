@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Transform Test</title>
+</head>
+<body>
+  <pre id="output"></pre>
+  <script>
+    function toCamelCase(str) {
+      return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase())
+    }
+
+    function transformKeys(obj) {
+      if (obj === null || typeof obj !== 'object') return obj
+      if (Array.isArray(obj)) {
+        return obj.map(transformKeys)
+      }
+      const result = {}
+      for (const [key, value] of Object.entries(obj)) {
+        const camelKey = toCamelCase(key)
+        result[camelKey] = transformKeys(value)
+      }
+      return result
+    }
+
+    // Simulate backend response
+    const backendResponse = {
+      game_id: "test123",
+      phase: "battle",
+      battle_turn: "player",
+      turn: 0,
+      player: { hp: 80, max_hp: 80, energy: 3, max_energy: 3, gold: 99, block: 0, buffs: [], debuffs: [] },
+      enemies: [],
+      deck: {
+        draw_pile: [
+          { id: "strike_1", name: "Strike", cost: 1, damage: 6, block: null, type: "attack", rarity: "common", description: "Deal 6 damage.", upgraded: false, effects: null }
+        ],
+        hand: [
+          { id: "strike_2", name: "Strike", cost: 1, damage: 6, block: null, type: "attack", rarity: "common", description: "Deal 6 damage.", upgraded: false, effects: null }
+        ],
+        discard_pile: [],
+        exhaust_pile: []
+      },
+      map: { floors: [] },
+      current_floor: 0,
+      current_room: 0,
+      rng_seed: "seed123",
+      pending_rewards: []
+    }
+
+    const transformed = transformKeys(backendResponse)
+
+    let output = "=== Transform Test ===\n\n"
+    output += "Original deck keys: " + Object.keys(backendResponse.deck).join(", ") + "\n"
+    output += "Transformed deck keys: " + Object.keys(transformed.deck).join(", ") + "\n\n"
+    output += "Original hand[0] keys: " + Object.keys(backendResponse.deck.hand[0]).join(", ") + "\n"
+    output += "Transformed hand[0] keys: " + Object.keys(transformed.deck.hand[0]).join(", ") + "\n\n"
+    output += "deck.hand length: " + transformed.deck.hand.length + "\n"
+    output += "deck.drawPile length: " + transformed.deck.drawPile.length + "\n"
+    output += "battleTurn: " + transformed.battleTurn + "\n"
+    output += "gameId: " + transformed.gameId + "\n"
+
+    document.getElementById('output').textContent = output
+    console.log(transformed)
+  </script>
+</body>
+</html>

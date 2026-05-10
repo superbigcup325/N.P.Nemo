@@ -13,21 +13,23 @@ export function CardComponent({ card, index, onPlay }: CardProps) {
   const x = 60 + index * 95
   const baseY = 480
   const hoverOffset = isHovered ? -20 : 0
-  
+
   const bgColor = card.type === 'attack' ? '#3d1a1a' : card.type === 'skill' ? '#1a2a3d' : '#2a2a1a'
   const strokeColor = card.type === 'attack' ? '#c0392b' : card.type === 'skill' ? '#2980b9' : '#f39c12'
-  
+
   return (
     <motion.g
       style={{ cursor: 'pointer' }}
-      animate={{ 
+      initial={{ y: 100, opacity: 0, scale: 0.8 }}
+      animate={{
         y: hoverOffset,
+        opacity: 1,
         scale: isHovered ? 1.08 : 1,
       }}
-      transition={{ 
-        type: 'spring',
-        stiffness: 300,
-        damping: 20
+      transition={{
+        y: { type: 'spring', stiffness: 300, damping: 20 },
+        opacity: { duration: 0.3, delay: index * 0.05 },
+        scale: { type: 'spring', stiffness: 300, damping: 20 }
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -43,7 +45,7 @@ export function CardComponent({ card, index, onPlay }: CardProps) {
         stroke={strokeColor}
         strokeWidth={isHovered ? 3 : 2}
         animate={{
-          filter: isHovered 
+          filter: isHovered
             ? 'brightness(1.2) drop-shadow(0 0 10px rgba(255,255,255,0.3))'
             : 'brightness(1)'
         }}
@@ -90,7 +92,7 @@ export function CardComponent({ card, index, onPlay }: CardProps) {
           fontWeight="bold"
           pointerEvents="none"
         >
-          {card.damage ? `💥 ${card.damage}` : `🛡️ ${card.block}`}
+          {card.damage ? `⚔${card.damage}` : `🛡${card.block}`}
         </text>
       )}
     </motion.g>
