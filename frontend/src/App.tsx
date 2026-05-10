@@ -44,7 +44,7 @@ function GameContent() {
         .then(setShopData)
         .catch((err) => setError(err instanceof Error ? err.message : 'Failed to fetch shop'))
     }
-  }, [gameState?.phase, gameState?.gameId])
+  }, [gameState?.phase, gameState?.gameId, rewardData, shopData, setError])
 
   const updatePhase = useCallback((newState: { phase: string }) => {
     setPhase(newState.phase as GamePhase)
@@ -53,7 +53,7 @@ function GameContent() {
   const handleStartGame = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       const response = await api.startGame({})
       setGameState(response.gameState)
@@ -67,8 +67,9 @@ function GameContent() {
 
   const handleAction = useCallback(async (action: GameAction) => {
     if (!gameState) return
-    
+
     setLoading(true)
+    console.log('[DEBUG] handleAction:', action)
     
     try {
       const newState = await api.performAction(gameState.gameId, action)
@@ -217,6 +218,7 @@ function GameContent() {
           {gameState?.phase === 'map' && gameState.map && (
             <MapView
               currentFloor={gameState.currentFloor}
+              currentRoom={gameState.currentRoom ?? 0}
               rooms={gameState.map.floors[gameState.currentFloor]?.rooms || []}
               onRoomSelect={handleRoomSelect}
             />
@@ -264,11 +266,9 @@ function GameContent() {
         </GameLayers>
         
         {!gameState && !isLoading && (
-          <g style={{ cursor: 'pointer' }}>
-            <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2}
-                  onClick={handleStartGame} />
-            <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold"
-                  onClick={handleStartGame}>Start Game</text>
+          <g style={{ cursor: 'pointer' }} onClick={() => { console.log('CLICKED'); handleStartGame(); }}>
+            <rect x={320} y={360} width={160} height={44} rx={22} fill="#4a4a6a" stroke="#6a6a8a" strokeWidth={2} />
+            <text x={400} y={388} textAnchor="middle" fill="#fff" fontSize={16} fontWeight="bold">Start Game</text>
           </g>
         )}
           

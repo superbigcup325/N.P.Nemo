@@ -137,6 +137,7 @@ class GameState(BaseModel):
     current_room: int
     rng_seed: str
     pending_rewards: List[Card] = []
+    shop_items: List[ShopItem] = []
 
 
 class GameStartRequest(BaseModel):
@@ -189,3 +190,6 @@ class ShopOffer(BaseModel):
 class ShopActionRequest(BaseModel):
     item_index: int
     action: str  # 'buy' or 'remove'
+
+
+GameState.model_rebuild()

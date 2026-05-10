@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ShopOffer, Card } from '../../types'
 
 interface ShopViewProps {
@@ -18,7 +19,7 @@ function ShopCardItem({ card, price, canAfford, onClick }: {
   const bgColor = card.type === 'attack' ? '#3d1a1a' : card.type === 'skill' ? '#1a2a3d' : '#2a2a1a'
   const strokeColor = canAfford ? (card.type === 'attack' ? '#c0392b' : card.type === 'skill' ? '#2980b9' : '#f39c12') : '#555'
   const rarityColor = card.rarity === 'rare' ? '#9b59b6' : card.rarity === 'uncommon' ? '#3498db' : '#95a5a6'
-  
+
   return (
     <g style={{ cursor: canAfford ? 'pointer' : 'not-allowed', opacity: canAfford ? 1 : 0.5 }} onClick={canAfford ? onClick : undefined}>
       <rect
@@ -47,7 +48,7 @@ function ShopCardItem({ card, price, canAfford, onClick }: {
       </text>
       {(card.damage || card.block) && (
         <text x={45} y={100} textAnchor="middle" fill="#e74c3c" fontSize={10} fontWeight="bold">
-          {card.damage ? `💥${card.damage}` : `🛡️${card.block}`}
+          {card.damage ? `⚔${card.damage}` : `🛡${card.block}`}
         </text>
       )}
       <rect x={55} y={96} width={32} height={18} rx={9} fill={canAfford ? '#27ae60' : '#666'} />
@@ -58,58 +59,100 @@ function ShopCardItem({ card, price, canAfford, onClick }: {
   )
 }
 
-export function ShopView({ shop, gold, onBuyItem, onRemoveCard, onLeave }: ShopViewProps) {
+function PlayerCardItem({ card, isSelected, onClick }: {
+  card: Card
+  isSelected: boolean
+  onClick: () => void
+}) {
+  const bgColor = card.type === 'attack' ? '#3d1a1a' : card.type === 'skill' ? '#1a2a3d' : '#2a2a1a'
+  const strokeColor = isSelected ? '#e74c3c' : (card.type === 'attack' ? '#c0392b' : card.type === 'skill' ? '#2980b9' : '#f39c12')
+
+  return (
+    <g style={{ cursor: 'pointer' }} onClick={onClick}>
+      <rect
+        x={0}
+        y={0}
+        width={80}
+        height={50}
+        rx={6}
+        fill={bgColor}
+        stroke={strokeColor}
+        strokeWidth={isSelected ? 3 : 1}
+      />
+      <text x={40} y={20} textAnchor="middle" fill="#fff" fontSize={9} fontWeight="bold">
+        {card.name.length > 10 ? card.name.substring(0, 9) + '…' : card.name}
+      </text>
+      <text x={40} y={38} textAnchor="middle" fill="#aaa" fontSize={8}>
+        {card.type}
+      </text>
+      <circle cx={12} cy={40} r={8} fill="#1a1a2e" stroke="#f39c12" strokeWidth={1} />
+      <text x={12} y={44} textAnchor="middle" fill="#f39c12" fontSize={9} fontWeight="bold">
+        {card.cost}
+      </text>
+    </g>
+  )
+}
+
+export function ShopView({ shop, gold, allCards, onBuyItem, onRemoveCard, onLeave }: ShopViewProps) {
+  const [selectedRemoveIndex, setSelectedRemoveIndex] = useState<number | null>(null)
   const canAffordRemove = gold >= shop.removePrice
-  
+
+  const handleRemoveClick = () => {
+    if (canAffordRemove && selectedRemoveIndex !== null) {
+      onRemoveCard(selectedRemoveIndex)
+      setSelectedRemoveIndex(null)
+    }
+  }
+
   return (
     <>
       <rect
         x={150}
-        y={100}
+        y={80}
         width={500}
-        height={400}
+        height={460}
         rx={20}
         fill="#1a1a2e"
         stroke="#f39c12"
         strokeWidth={4}
         opacity={0.97}
       />
-      
+
       <text
         x={400}
-        y={140}
+        y={115}
         textAnchor="middle"
         fill="#f39c12"
-        fontSize={28}
+        fontSize={24}
         fontWeight="bold"
       >
-        🏪 Merchant's Shop
-      </text>
-      
-      <text
-        x={400}
-        y={170}
-        textAnchor="middle"
-        fill="#f1c40f"
-        fontSize={20}
-        fontWeight="bold"
-      >
-        💰 Your Gold: {gold}
+        Merchant's Shop
       </text>
 
       <text
-        x={180}
-        y={205}
+        x={400}
+        y={142}
+        textAnchor="middle"
+        fill="#f1c40f"
+        fontSize={16}
+        fontWeight="bold"
+      >
+        Gold: {gold}
+      </text>
+
+      <text
+        x={170}
+        y={170}
         textAnchor="start"
         fill="#aaa"
-        fontSize={14}
+        fontSize={12}
         fontWeight="bold"
       >
         Cards for Sale:
       </text>
 
       {shop.items.map((item, idx) => (
-        <g key={`shop_item_${idx}`} transform={`translate(${180 + idx * 100}, 220)`}>
+        <g key={`shop_item_${idx}`} transform={`translate(${170 + idx * 100}, 180)`}>
           <ShopCardItem
             card={item.card}
             price={item.price}
@@ -119,61 +162,80 @@ export function ShopView({ shop, gold, onBuyItem, onRemoveCard, onLeave }: ShopV
         </g>
       ))}
 
-      <line x1={170} y1={360} x2={630} y2={360} stroke="#444" strokeWidth={2} />
+      <line x1={160} y1={310} x2={640} y2={310} stroke="#444" strokeWidth={2} />
 
       <text
-        x={180}
-        y={385}
+        x={170}
+        y={330}
         textAnchor="start"
         fill="#aaa"
-        fontSize={14}
+        fontSize={12}
         fontWeight="bold"
       >
-        Remove a Card:
+        Remove a Card ({shop.removePrice}g):
       </text>
 
-      <g style={{ cursor: canAffordRemove ? 'pointer' : 'not-allowed', opacity: canAffordRemove ? 1 : 0.5 }}>
-        <rect
-          x={350}
-          y={365}
-          width={140}
-          height={35}
-          rx={17}
-          fill={canAffordRemove ? '#2a3a2a' : '#333'}
-          stroke={canAffordRemove ? '#e74c3c' : '#555'}
-          strokeWidth={2}
-          onClick={canAffordRemove ? () => onRemoveCard(0) : undefined}
-        />
-        <text
-          x={420}
-          y={388}
-          textAnchor="middle"
-          fill={canAffordRemove ? '#e74c3c' : '#666'}
-          fontSize={12}
-          fontWeight="bold"
-          onClick={canAffordRemove ? () => onRemoveCard(0) : undefined}
-        >
-          Remove ({shop.removePrice}g)
+      {allCards.length > 0 ? (
+        <>
+          {allCards.map((card, idx) => (
+            <g key={`remove_card_${card.id}_${idx}`} transform={`translate(${170 + (idx % 5) * 90}, ${345 + Math.floor(idx / 5) * 58})`}>
+              <PlayerCardItem
+                card={card}
+                isSelected={selectedRemoveIndex === idx}
+                onClick={() => setSelectedRemoveIndex(idx)}
+              />
+            </g>
+          ))}
+
+          <g
+            style={{ cursor: canAffordRemove && selectedRemoveIndex !== null ? 'pointer' : 'not-allowed', opacity: canAffordRemove && selectedRemoveIndex !== null ? 1 : 0.5 }}
+            onClick={handleRemoveClick}
+          >
+            <rect
+              x={320}
+              y={420}
+              width={160}
+              height={32}
+              rx={16}
+              fill={canAffordRemove && selectedRemoveIndex !== null ? '#3a1a1a' : '#333'}
+              stroke={canAffordRemove && selectedRemoveIndex !== null ? '#e74c3c' : '#555'}
+              strokeWidth={2}
+            />
+            <text
+              x={400}
+              y={441}
+              textAnchor="middle"
+              fill={canAffordRemove && selectedRemoveIndex !== null ? '#e74c3c' : '#666'}
+              fontSize={12}
+              fontWeight="bold"
+            >
+              Confirm Remove ({shop.removePrice}g)
+            </text>
+          </g>
+        </>
+      ) : (
+        <text x={400} y={380} textAnchor="middle" fill="#666" fontSize={12}>
+          No cards to remove
         </text>
-      </g>
+      )}
 
       <g style={{ cursor: 'pointer' }} onClick={onLeave}>
         <rect
           x={520}
-          y={465}
-          width={110}
-          height={32}
-          rx={16}
+          y={490}
+          width={100}
+          height={30}
+          rx={15}
           fill="#2a2a3a"
           stroke="#888"
           strokeWidth={2}
         />
         <text
-          x={575}
-          y={486}
+          x={570}
+          y={510}
           textAnchor="middle"
           fill="#888"
-          fontSize={13}
+          fontSize={12}
           fontWeight="bold"
         >
           Leave Shop

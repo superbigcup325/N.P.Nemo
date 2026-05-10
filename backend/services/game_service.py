@@ -7,7 +7,8 @@ from sqlalchemy import select
 from schemas.game import (
     GameStartRequest, GameStartResponse, GameState, GameAction,
     GamePhase, Player, Enemy, EnemyIntent, EnemyIntentType,
-    Deck, Card, CardType, CardRarity, GameMap, MapFloor, MapRoom, RoomType
+    Deck, Card, CardType, CardRarity, GameMap, MapFloor, MapRoom, RoomType,
+    ShopItem
 )
 from core.state_machine import GameStateMachine, BattleTurn
 from models.game import GameModel
@@ -88,9 +89,27 @@ class GameService:
             payload = action.payload or {}
             room_idx = payload.get("room_index", 0)
 
-            if room_idx < len(state.map.floors[state.current_floor].rooms):
-                room = state.map.floors[state.current_floor].rooms[room_idx]
+            floor_rooms = state.map.floors[state.current_floor].rooms
+
+            next_valid_room = None
+            for i in range(state.current_room, len(floor_rooms)):
+                if not floor_rooms[i].completed:
+                    next_valid_room = i
+                    break
+
+            if next_valid_room is None:
+                for i in range(len(floor_rooms)):
+                    if not floor_rooms[i].completed:
+                        next_valid_room = i
+                        break
+
+            if room_idx != next_valid_room and next_valid_room is not None:
+                return state
+
+            if room_idx < len(floor_rooms):
+                room = floor_rooms[room_idx]
                 room.completed = True
+                state.current_room = room_idx
 
                 if room.type in (RoomType.BATTLE, RoomType.ELITE, RoomType.BOSS):
                     state.phase = GamePhase.BATTLE
@@ -213,13 +232,13 @@ class GameService:
         alive_enemies = [e for e in state.enemies if e.hp > 0]
 
         if state.enemies and not alive_enemies:
+            state.enemies = []
             if state.current_floor >= len(state.map.floors) - 1 and any(
                 r.type == RoomType.BOSS for r in state.map.floors[state.current_floor].rooms
             ):
                 state.phase = GamePhase.VICTORY
             else:
                 state.phase = GamePhase.REWARD
-            state.enemies = []
 
     def _create_starter_deck(self) -> list[Card]:
         return [
@@ -396,7 +415,7 @@ class GameService:
                 state.deck.draw_pile.append(selected_card)
 
         state.pending_rewards = []
-        state.phase = GamePhase.MAP
+        self._advance_floor(state)
 
         await self._save_game_state(state)
         return state
@@ -420,10 +439,16 @@ class GameService:
                         card_to_upgrade.block += 2
                     card_to_upgrade.cost = max(0, card_to_upgrade.cost - 1)
 
-        state.phase = GamePhase.MAP
+        self._advance_floor(state)
 
         await self._save_game_state(state)
         return state
+
+    def _advance_floor(self, state: GameState) -> None:
+        all_rooms_completed = all(r.completed for r in state.map.floors[state.current_floor].rooms)
+        if all_rooms_completed and state.current_floor < len(state.map.floors) - 1:
+            state.current_floor += 1
+        state.phase = GamePhase.MAP
 
     def _get_shop_card_pool(self) -> list[Card]:
         return [
@@ -454,6 +479,13 @@ class GameService:
         if not state or state.phase != GamePhase.SHOP:
             return None
 
+        if state.shop_items:
+            shop_offer = {
+                "items": [item.model_dump() for item in state.shop_items],
+                "remove_price": 50
+            }
+            return shop_offer
+
         rng = random.Random(state.rng_seed + f"_shop_{state.turn}")
         card_pool = self._get_shop_card_pool()
 
@@ -464,14 +496,17 @@ class GameService:
 
         for card in selected_cards:
             price = 50 if card.rarity == CardRarity.COMMON else (75 if card.rarity == CardRarity.UNCOMMON else 150)
-            shop_items.append({
-                "card": card.model_dump(),
-                "price": price,
-                "item_type": "card_add"
-            })
+            shop_items.append(ShopItem(
+                card=card,
+                price=price,
+                item_type="card_add"
+            ))
+
+        state.shop_items = shop_items
+        await self._save_game_state(state)
 
         shop_offer = {
-            "items": shop_items,
+            "items": [item.model_dump() for item in shop_items],
             "remove_price": 50
         }
 
@@ -483,21 +518,17 @@ class GameService:
             return None
 
         if action == "buy":
-            rng = random.Random(state.rng_seed + f"_shop_{state.turn}")
-            card_pool = self._get_shop_card_pool()
-            num_items = min(rng.randint(3, 5), len(card_pool))
-            selected_cards = rng.sample(card_pool, num_items)
-
-            if 0 <= item_index < len(selected_cards):
-                card_to_buy = selected_cards[item_index]
-
-                price = 50 if card_to_buy.rarity == CardRarity.COMMON else (75 if card_to_buy.rarity == CardRarity.UNCOMMON else 150)
+            if 0 <= item_index < len(state.shop_items):
+                item = state.shop_items[item_index]
+                card_to_buy = item.card
+                price = item.price
 
                 if state.player.gold >= price:
                     state.player.gold -= price
                     new_card_id = f"{card_to_buy.id}_{uuid.uuid4().hex[:8]}"
                     card_to_buy.id = new_card_id
                     state.deck.draw_pile.append(card_to_buy)
+                    state.shop_items = []
 
         elif action == "remove":
             remove_price = 50
@@ -518,7 +549,7 @@ class GameService:
                 elif card_to_remove in state.deck.exhaust_pile:
                     state.deck.exhaust_pile.remove(card_to_remove)
 
-        state.phase = GamePhase.MAP
+        self._advance_floor(state)
 
         await self._save_game_state(state)
         return state
